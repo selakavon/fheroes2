@@ -28,6 +28,19 @@ fheroes2 provides release builds or installation instructions for Windows, macOS
 Availability and installation steps may differ between platforms, so please check the [Installation Guide](https://ihhub.github.io/fheroes2/INSTALL.html)
 for details.
 
+## Q: What do the screen scaling types do?
+
+The game is rendered at the selected in-game resolution and then stretched to the window or screen. The "Screen Scaling Type" option in the graphics
+settings controls how this stretch is done:
+
+* **Nearest** keeps every pixel sharp and is pixel-perfect at integer scales (2.0x, 3.0x).
+* **Linear** blends neighbouring pixels. It is smooth at any scale but makes the image blurry.
+* **xBRZ** reconstructs smooth edges from the pixel art on the CPU. It is the recommended option for large screens and works best when combined with
+  a scaled resolution such as "960 x 540 (x2.0)".
+* **Sharp** upscales with a bicubic filter and applies light sharpening. It supports any scale factor.
+
+The same option is stored in the `fheroes2.cfg` file as `screen scaling type = nearest | linear | xbrz | sharp`.
+
 ## Q: How is fheroes2 different from the original Heroes of Might and Magic II?
 
 fheroes2 recreates the Heroes of Might and Magic II game engine from scratch while preserving the spirit of the original game. It also includes many fixes,

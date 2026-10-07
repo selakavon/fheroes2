@@ -8,10 +8,18 @@ One line per task of [REMASTER_PLAN.md](REMASTER_PLAN.md). States: `todo`, `in p
 * P1.2 - done - d4f0b17d3
 * P1.3 - done
 * P1.4 - done
-* P1.5 - todo
-* P1.6 - todo
+* P1.5 - done
+* P1.6 - done
 
 ## Notes
+
+* P1.5: the resolution dialog already labelled scaled entries as "960 x 540 (x2.0)", so only the resolution
+  list generation was extended (2x, 3x, 4x of the biggest screen resolution, even sizes, near-duplicates of
+  existing entries skipped). Verified on a 2560x1440 virtual screen: "840 x 525 (x2.0)"-style entries appear
+  next to the exact ones. Switching the scaling type at runtime through the dialog re-creates the renderer
+  correctly for all four modes.
+* In-game FPS under Xvfb (software SDL renderer) is identical for nearest, xBRZ and Sharp on the adventure
+  map, so the scaler is not the limiting factor there. It is not a GPU-backed measurement.
 
 * P1.4: the CPU scaler path keeps the SDL logical size equal to the game resolution (mouse coordinates are
   unaffected) and only enlarges the streaming texture. xBRZ uses the smallest integer factor not below the
