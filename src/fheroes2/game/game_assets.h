@@ -43,4 +43,7 @@ namespace Assets
 
     void resetAllScaledImages();
     void resetScaledBackgroundImages();
+
+    // Drops the cached images whose shadows depend on the Enhanced Shadows visual effect so that they are reloaded with the new setting.
+    void resetSoftShadowImages();
 }

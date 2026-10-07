@@ -1,6 +1,6 @@
 /***************************************************************************
  *   fheroes2: https://github.com/ihhub/fheroes2                           *
- *   Copyright (C) 2020 - 2025                                             *
+ *   Copyright (C) 2020 - 2026                                             *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
@@ -333,6 +333,12 @@ namespace fheroes2
     uint8_t GetColorId( const uint8_t red, const uint8_t green, const uint8_t blue );
 
     Sprite makeShadow( const Sprite & in, const Point & shadowOffset, const uint8_t transformId );
+
+    // Turns the hard one-level shadow of an image (transform values 2 to 5) into a soft one: shadow pixels next to a
+    // transparent pixel become one level lighter and the transparent pixels around the shadow get a faint shadow two
+    // levels lighter than the core. Pixels on the image border are treated as if the image continued beyond it so that
+    // objects split into tiles keep their shadows continuous. The image size is not changed.
+    void softenShadow( Image & image );
 
     // This function does NOT check transform layer. If you intent to replace few colors at the same image please use ApplyPalette to be more efficient.
     void ReplaceColorId( Image & image, const uint8_t oldColorId, const uint8_t newColorId );

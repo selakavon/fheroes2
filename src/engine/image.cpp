@@ -2705,6 +2705,58 @@ namespace fheroes2
         return out;
     }
 
+    void softenShadow( Image & image )
+    {
+        if ( image.empty() || image.singleLayer() ) {
+            return;
+        }
+
+        const int32_t width = image.width();
+        const int32_t height = image.height();
+        uint8_t * transform = image.transform();
+
+        const auto isShadow = []( const uint8_t value ) { return value >= 2 && value <= 5; };
+
+        // Work on a copy so that the decisions are based on the original shadow only.
+        const std::vector<uint8_t> original( transform, transform + static_cast<size_t>( width ) * height );
+
+        // Out of bounds neighbours count as the pixel itself.
+        const auto at = [&original, width, height]( const int32_t x, const int32_t y, const uint8_t self ) -> uint8_t {
+            if ( x < 0 || y < 0 || x >= width || y >= height ) {
+                return self;
+            }
+            return original[static_cast<size_t>( y ) * width + x];
+        };
+
+        for ( int32_t y = 0; y < height; ++y ) {
+            for ( int32_t x = 0; x < width; ++x ) {
+                const size_t offset = static_cast<size_t>( y ) * width + x;
+                const uint8_t value = original[offset];
+
+                if ( isShadow( value ) ) {
+                    // A shadow pixel touching a transparent pixel is the edge of the shadow: make it lighter.
+                    const bool isEdge = at( x - 1, y, value ) == 1 || at( x + 1, y, value ) == 1 || at( x, y - 1, value ) == 1 || at( x, y + 1, value ) == 1;
+                    if ( isEdge ) {
+                        transform[offset] = static_cast<uint8_t>( std::min<int32_t>( value + 1, 5 ) );
+                    }
+                }
+                else if ( value == 1 ) {
+                    // A transparent pixel touching the shadow gets a faint shadow (two levels lighter than the darkest neighbour).
+                    uint8_t darkest = 0;
+                    for ( const uint8_t neighbour : { at( x - 1, y, value ), at( x + 1, y, value ), at( x, y - 1, value ), at( x, y + 1, value ) } ) {
+                        if ( isShadow( neighbour ) && ( darkest == 0 || neighbour < darkest ) ) {
+                            darkest = neighbour;
+                        }
+                    }
+
+                    if ( darkest != 0 && darkest + 2 <= 5 ) {
+                        transform[offset] = static_cast<uint8_t>( darkest + 2 );
+                    }
+                }
+            }
+        }
+    }
+
     void ReplaceColorId( Image & image, const uint8_t oldColorId, const uint8_t newColorId )
     {
         if ( image.empty() ) {

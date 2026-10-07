@@ -279,6 +279,7 @@ namespace fheroes2
                 break;
             case SelectedWindow::EnhancedShadows:
                 conf.setFxEnhancedShadows( !conf.isFxEnhancedShadowsEnabled() );
+                Assets::resetSoftShadowImages();
                 saveConfiguration = true;
                 windowType = SelectedWindow::Configuration;
                 break;

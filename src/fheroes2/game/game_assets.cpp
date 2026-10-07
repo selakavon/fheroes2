@@ -44,6 +44,8 @@
 #include "image.h"
 #include "image_tool.h"
 #include "math_base.h"
+#include "monster.h"
+#include "monster_info.h"
 #include "pal.h"
 #include "rand.h"
 #include "screen.h"
@@ -186,6 +188,33 @@ namespace
 
     // Images that are scaled by Resize() or SubpixelResize() function.
     const std::set<int> scalableIcnId{ ICN::WHITE_LARGE_FONT };
+
+    // Images whose hard shadows are softened by the Enhanced Shadows visual effect (remaster): Adventure Map objects,
+    // the shadows of heroes, boats and monsters on the Adventure Map and the battlefield unit sprites.
+    const std::set<int> & getSoftShadowIcnIds()
+    {
+        static const std::set<int> ids = []() {
+            std::set<int> result{ ICN::BOAT32,   ICN::BOATSHAD, ICN::EXTRAOVR, ICN::MINIHERO, ICN::MINI_MONSTER_SHADOW,
+                                  ICN::MONS32,   ICN::MTNCRCK,  ICN::MTNDIRT,  ICN::MTNDSRT,  ICN::MTNGRAS,
+                                  ICN::MTNLAVA,  ICN::MTNMULT,  ICN::MTNSNOW,  ICN::MTNSWMP,  ICN::OBJNARTI,
+                                  ICN::OBJNCRCK, ICN::OBJNDIRT, ICN::OBJNDSRT, ICN::OBJNGRA2, ICN::OBJNGRAS,
+                                  ICN::OBJNLAV2, ICN::OBJNLAV3, ICN::OBJNLAVA, ICN::OBJNMUL2, ICN::OBJNMULT,
+                                  ICN::OBJNRSRC, ICN::OBJNSNOW, ICN::OBJNSWMP, ICN::OBJNTOWN, ICN::OBJNTWBA,
+                                  ICN::OBJNTWRD, ICN::OBJNTWSH, ICN::OBJNWAT2, ICN::OBJNWATR, ICN::OBJNXTRA,
+                                  ICN::SHADOW32, ICN::TREDECI,  ICN::TREEVIL,  ICN::TREFALL,  ICN::TREFIR,
+                                  ICN::TREJNGL,  ICN::TRESNOW,  ICN::X_LOC1,   ICN::X_LOC2,   ICN::X_LOC3 };
+
+            for ( int monsterId = Monster::UNKNOWN + 1; monsterId < Monster::MONSTER_COUNT; ++monsterId ) {
+                result.insert( fheroes2::getMonsterData( monsterId ).icnId );
+            }
+
+            result.erase( ICN::UNKNOWN );
+
+            return result;
+        }();
+
+        return ids;
+    }
 
     bool isLanguageDependentIcnId( const int id )
     {
@@ -5699,6 +5728,16 @@ namespace
         // WARNING: The `processICN()` function must be called only in this place!
         processICN( id );
 
+        if ( Settings::Get().isFxEnhancedShadowsEnabled() ) {
+            // The monster shadows are generated together with the monster images, whichever of the two is requested first.
+            const int shadowId = ( id == ICN::MINI_MONSTER_IMAGE ) ? ICN::MINI_MONSTER_SHADOW : id;
+            if ( getSoftShadowIcnIds().count( shadowId ) > 0 ) {
+                for ( fheroes2::Sprite & sprite : _icnVsSprite[shadowId] ) {
+                    fheroes2::softenShadow( sprite );
+                }
+            }
+        }
+
         if ( _icnVsSprite[id].empty() ) {
             // This could happen by one reason: asking to render an ICN that simply doesn't exist within the resources.
             // In order to avoid subsequent attempts to get resources from this ICN we are making it as non-empty.
@@ -5914,5 +5953,15 @@ namespace Assets
         for ( const int icnId : scalableBackgroundIcnId ) {
             _icnVsScaledSprite[icnId].clear();
         }
+    }
+
+    void resetSoftShadowImages()
+    {
+        for ( const int icnId : getSoftShadowIcnIds() ) {
+            _icnVsSprite[icnId].clear();
+        }
+
+        // The monster images and shadows are generated together.
+        _icnVsSprite[ICN::MINI_MONSTER_IMAGE].clear();
     }
 }

@@ -16,7 +16,7 @@ One line per task of [REMASTER_PLAN.md](REMASTER_PLAN.md). States: `todo`, `in p
 * P2.1 - done - 2f259867d
 * P2.2 - done
 * P2.3 - done
-* P2.4 - todo
+* P2.4 - done
 * P2.5 - todo
 * P2.6 - todo
 
@@ -72,6 +72,24 @@ One line per task of [REMASTER_PLAN.md](REMASTER_PLAN.md). States: `todo`, `in p
   27% mask coverage (about 0.85 ms extrapolated to a 1280x720 game area). The weather is drawn only from the
   Adventure Map redraw with `LEVEL_WEATHER`, so other `GameArea::Redraw()` users (editor, puzzle) are unaffected;
   with the option off `Weather::draw()` returns before touching the frame.
+
+* P2.4: `fheroes2::softenShadow()` (engine `image.cpp`) works on the transform layer only: shadow pixels (values 2
+  to 5) that touch a transparent pixel become one level lighter and transparent pixels that touch the shadow get a
+  shadow two levels lighter than their darkest shadow neighbour, so the usual level 2 shadow becomes core 2, edge 3,
+  halo 4. The image is not enlarged, and pixels on the image border are treated as if the image continued, so
+  objects split into 32x32 tile sprites keep continuous shadows (a 1 px notch where a shadow outline crosses a tile
+  seam is possible). It is applied in `loadICN()` right after `processICN()` to the Adventure Map object ICNs listed
+  by `MP2::getIcnIdFromObjectIcnType()`, the hero, boat and monster shadow sprites (`SHADOW32`, `BOATSHAD`,
+  `MINI_MONSTER_SHADOW`) and every battle unit ICN from `getMonsterData()`, so heroes and monsters get the same
+  softened shadow rather than a newly generated one. The original assets already contain some level 3 to 5 pixels;
+  these are shifted the same way, capped at 5.
+* P2.4 toggle: `Assets::resetSoftShadowImages()` clears the cached sprites of all affected ICNs (plus
+  `MINI_MONSTER_IMAGE`, which is generated together with its shadow) when the option is switched in the Visual
+  Effects dialog, and the lazy loader rebuilds them with the new setting. Verified headlessly: toggling the option
+  from the in-game System Options > Graphics > Visual Effects dialog changes only the shadow outlines of the visible
+  map (13k pixels on a 1920x1080 frame) and the config file is updated; palm tree shadows show the lighter edge and
+  halo at 6x zoom. With the option off the loader does not touch the sprites. Battle shadows were not verified
+  headlessly.
 
 * P1.5: the resolution dialog already labelled scaled entries as "960 x 540 (x2.0)", so only the resolution
   list generation was extended (2x, 3x, 4x of the biggest screen resolution, even sizes, near-duplicates of
