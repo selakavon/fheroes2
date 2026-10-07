@@ -11,6 +11,16 @@ One line per task of [REMASTER_PLAN.md](REMASTER_PLAN.md). States: `todo`, `in p
 * P1.5 - done
 * P1.6 - done
 
+## Phase 1 exit criteria
+
+* Nearest mode screenshot-identical to `master`: yes (0 differing pixels, 1280x720 main menu under Xvfb).
+* No seams or ghosting with partial redraws: verified by opening and closing dialogs and sub-menus under xBRZ.
+* Full-frame performance: the row-diff optimisation (P1.4.5) is implemented. Measured in Release on the
+  adventure map (960x540 game, 2x xBRZ to 1920x1080, 4 cores): full-frame updates avg 8.8 ms, median 6.0 ms,
+  max 20 ms; partial updates avg 2.4 ms. Sharp: full-frame avg 20 ms, median 11 ms; partial avg 7 ms.
+* CI: not run locally. Local checks passed: clang-format diff of the whole branch is empty, copyright headers
+  valid, markdownlint clean, Debug and Release builds have no warnings in the touched files.
+
 ## Notes
 
 * P1.5: the resolution dialog already labelled scaled entries as "960 x 540 (x2.0)", so only the resolution
