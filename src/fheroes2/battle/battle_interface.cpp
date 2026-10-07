@@ -1574,6 +1574,9 @@ void Battle::Interface::fullRedraw()
 {
     if ( !_background ) {
         _background = std::make_unique<fheroes2::StandardWindow>( fheroes2::Display::DEFAULT_WIDTH, fheroes2::Display::DEFAULT_HEIGHT, false );
+
+        // The battlefield window is the scene itself, not a dialog on top of it.
+        fheroes2::Ambience::instance().rebaseDialogDepth();
     }
 
     fheroes2::Display & display = fheroes2::Display::instance();

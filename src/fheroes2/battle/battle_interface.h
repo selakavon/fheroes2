@@ -30,6 +30,7 @@
 #include <utility>
 #include <vector>
 
+#include "ambience.h"
 #include "battle_animation.h"
 #include "battle_board.h"
 #include "battle_troop.h"
@@ -551,6 +552,9 @@ namespace Battle
 
         PopupDamageInfo popup;
         TurnOrder _turnOrder;
+
+        // Must be declared before '_background' so that it is destroyed after the battlefield window.
+        const fheroes2::Ambience::SceneGuard _ambienceScene{ fheroes2::Ambience::Scene::BATTLE };
 
         std::unique_ptr<fheroes2::StandardWindow> _background;
 

@@ -24,6 +24,7 @@
 #include <cassert>
 #include <cstddef>
 
+#include "ambience.h"
 #include "game_assets.h"
 #include "icn.h"
 #include "settings.h"
@@ -112,6 +113,8 @@ namespace fheroes2
         , _restorer( output, _windowArea.x - borderSize, _windowArea.y, _windowArea.width + borderSize, _windowArea.height + borderSize )
         , _hasBackground{ renderBackground }
     {
+        Ambience::instance().pushDialog();
+
         render();
     }
 
@@ -123,6 +126,8 @@ namespace fheroes2
         , _restorer( output, _windowArea.x - borderSize, _windowArea.y, _windowArea.width + borderSize, _windowArea.height + borderSize )
         , _hasBackground{ renderBackground }
     {
+        Ambience::instance().pushDialog();
+
         render();
     }
 
@@ -133,6 +138,8 @@ namespace fheroes2
         , _totalArea( _windowArea.x - borderSize, _windowArea.y, _windowArea.width + borderSize, _windowArea.height + borderSize )
         , _restorer( output, _windowArea.x - borderSize, _windowArea.y, _windowArea.width + borderSize, _windowArea.height + borderSize )
     {
+        Ambience::instance().pushDialog();
+
         if ( buttons.getButtonsCount() == 0 ) {
             // What are you trying to achieve with no buttons?!
             assert( 0 );
@@ -140,6 +147,17 @@ namespace fheroes2
         }
 
         render();
+    }
+
+    StandardWindow::~StandardWindow()
+    {
+        Ambience::instance().popDialog();
+
+        Display & display = Display::instance();
+        if ( &_output == &display ) {
+            // The screen area of the closed window should be updated during the next '.render()' call.
+            display.updateNextRenderRoi( _totalArea );
+        }
     }
 
     void StandardWindow::render()

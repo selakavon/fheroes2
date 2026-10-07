@@ -57,14 +57,7 @@ namespace fheroes2
         // Renders a dialog with its size adjusted to fit a symmetric button group with the buttons aligned in either a single column or in multiple. Add extra height if
         // the dialog has extra elements like a text header.
         StandardWindow( ButtonGroup & buttons, const bool isSingleColumn, const int32_t extraHeight, Image & output = Display::instance() );
-        ~StandardWindow()
-        {
-            Display & display = Display::instance();
-            if ( &_output == &display ) {
-                // The screen area of the closed window should be updated during the next '.render()' call.
-                display.updateNextRenderRoi( _totalArea );
-            }
-        }
+        ~StandardWindow();
 
         // Returns the window background ROI.
         const Rect & activeArea() const

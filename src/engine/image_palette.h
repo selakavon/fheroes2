@@ -45,6 +45,16 @@ namespace fheroes2
             // Do nothing.
         }
 
+        bool operator==( const RGB & other ) const
+        {
+            return r == other.r && g == other.g && b == other.b;
+        }
+
+        bool operator!=( const RGB & other ) const
+        {
+            return !( *this == other );
+        }
+
         uint32_t getBGRA() const
         {
             return ( 255U << 24U ) + ( static_cast<uint32_t>( r ) << 16U ) + ( static_cast<uint32_t>( g ) << 8U ) + static_cast<uint32_t>( b );

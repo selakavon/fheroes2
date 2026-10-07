@@ -25,6 +25,7 @@
 #include <cstdint>
 #include <memory>
 
+#include "ambience.h"
 #include "dialog.h" // IWYU pragma: associated
 #include "game_assets.h"
 #include "icn.h"
@@ -96,6 +97,8 @@ Dialog::ResizableFrameBox::ResizableFrameBox( int width, int height, int startYP
     : _middleFragmentCount( 0 )
     , _middleFragmentHeight( 0 )
 {
+    fheroes2::Ambience::instance().pushDialog();
+
     if ( showButtons ) {
         height += buttonHeight;
     }
@@ -175,6 +178,8 @@ void Dialog::ResizableFrameBox::redraw()
 
 Dialog::ResizableFrameBox::~ResizableFrameBox()
 {
+    fheroes2::Ambience::instance().popDialog();
+
     _restorer->restore();
 
     fheroes2::Display::instance().render( _restorer->rect() );

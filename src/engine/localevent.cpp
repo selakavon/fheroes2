@@ -1080,8 +1080,7 @@ namespace EventProcessing
                 // PS Vita has two touchpads: front and rear. The ID of the front touchpad must match the value of
                 // 'SDL_TouchID' used in the 'SDL_AddTouch()' call in the 'VITA_InitTouch()' function in this SDL2
                 // source file: video/vita/SDL_vitatouch.c.
-                constexpr SDL_TouchID frontTouchpadDeviceID
-                {
+                constexpr SDL_TouchID frontTouchpadDeviceID{
 #if SDL_VERSION_ATLEAST( 2, 30, 7 )
                     1
 #else
@@ -1275,8 +1274,8 @@ bool LocalEvent::HandleEvents( const bool sleepAfterEventProcessing /* = true */
 
     fheroes2::Display & display = fheroes2::Display::instance();
 
-    // To maintain color cycling animation we need to render the whole frame with an updated palette.
-    if ( isDisplayRefreshRequired || fheroes2::RenderProcessor::instance().isCyclingUpdateRequired() ) {
+    // To maintain color cycling animation (or a palette transition) we need to render the whole frame with an updated palette.
+    if ( isDisplayRefreshRequired || fheroes2::RenderProcessor::instance().isFullFrameUpdateRequired() ) {
         renderRoi = { 0, 0, display.width(), display.height() };
     }
     else {

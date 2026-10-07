@@ -35,6 +35,7 @@
 #include <vector>
 
 #include "ai_planner.h"
+#include "ambience.h"
 #include "army.h"
 #include "audio.h"
 #include "audio_manager.h"
@@ -731,6 +732,9 @@ int Interface::AdventureMap::GetCursorTileIndex( int32_t dstIndex )
 
 fheroes2::GameMode Interface::AdventureMap::StartGame()
 {
+    // The world lighting (day/night and seasonal tints) is active while the Adventure Map is shown.
+    const fheroes2::Ambience::SceneGuard ambienceScene( fheroes2::Ambience::Scene::ADVENTURE_MAP );
+
     Settings & conf = Settings::Get();
 
     const bool isAutoPlaytest{ conf.IsGameType( Game::TYPE_AUTO_PLAYTEST ) };
@@ -979,9 +983,7 @@ fheroes2::GameMode Interface::AdventureMap::StartGame()
         // We went through all the players, but the current player from the save file is still not found,
         // something is clearly wrong here
         if ( skipTurns ) {
-            DEBUG_LOG( DBG_GAME, DBG_WARN,
-                       "the current player from the save file was not found"
-                           << ", player color: " << Color::String( conf.CurrentColor() ) )
+            DEBUG_LOG( DBG_GAME, DBG_WARN, "the current player from the save file was not found" << ", player color: " << Color::String( conf.CurrentColor() ) )
 
             res = fheroes2::GameMode::MAIN_MENU;
         }

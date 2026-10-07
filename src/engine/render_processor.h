@@ -87,11 +87,25 @@ namespace fheroes2
             return _enableCycling && _cyclingTimer.getMs() + _previousCyclingInterval >= 2 * _cyclingInterval && _lastRenderCall.getMs() > _frameHalfInterval;
         }
 
+        // Registers a function which is asked before sleeping in the event loop whether an extra full-frame render is needed
+        // (for example, during a smooth palette transition). It is called often so it must be cheap.
+        void registerFullFrameRenderRequester( const std::function<bool()> & requester )
+        {
+            _fullFrameRenderRequester = requester;
+        }
+
+        // Returns true if the whole frame must be rendered: either colour cycling has to advance or a registered requester asks for it.
+        bool isFullFrameUpdateRequired() const
+        {
+            return isCyclingUpdateRequired() || ( _fullFrameRenderRequester && _fullFrameRenderRequester() );
+        }
+
     private:
         RenderProcessor() = default;
 
         std::function<void()> _preRenderer;
         std::function<void()> _postRenderer;
+        std::function<bool()> _fullFrameRenderRequester;
 
         fheroes2::Time _cyclingTimer;
         fheroes2::Time _lastRenderCall;

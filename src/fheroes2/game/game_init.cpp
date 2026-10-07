@@ -30,6 +30,7 @@
 #include <vector>
 
 #include "agg.h"
+#include "ambience.h"
 #include "audio_manager.h"
 #include "core.h"
 #include "cursor.h"
@@ -119,6 +120,10 @@ namespace
             renderProcessor.registerRenderers( [sysInfoRenderer = _systemInfoRenderer.get()]() { sysInfoRenderer->preRender(); },
                                                [sysInfoRenderer = _systemInfoRenderer.get()]() { sysInfoRenderer->postRender(); } );
             renderProcessor.startColorCycling();
+
+            // Day/night and seasonal tints are applied to the RGB palette right before rendering.
+            display.subscribeRGBPalette( []( std::vector<fheroes2::RGB> & palette ) { return fheroes2::Ambience::instance().apply( palette ); } );
+            renderProcessor.registerFullFrameRenderRequester( []() { return fheroes2::Ambience::instance().isRenderRequired(); } );
 
             // Update mouse cursor when switching between software emulation and OS mouse modes.
             cursor.registerUpdater( Cursor::Refresh );

@@ -23,6 +23,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "image_palette.h"
+
 namespace PAL
 {
     enum class PaletteType : int
@@ -47,4 +49,11 @@ namespace PAL
     std::vector<uint8_t> GetCyclingPalette( const uint32_t stepId );
     const std::vector<uint8_t> & GetPalette( const PaletteType type );
     std::vector<uint8_t> CombinePalettes( const std::vector<uint8_t> & first, const std::vector<uint8_t> & second );
+
+    // Returns a copy of the RGB palette with a uniform colour tint applied: every entry is first desaturated towards its
+    // luminance by 'saturation' (1.0 keeps the colour, 0.0 makes it gray), then each channel is multiplied by the
+    // corresponding factor and by 'brightness'. The result is clamped to 0..255. Entry 0 is never modified.
+    // Since the tint is uniform the colour cycling indexes keep animating correctly after the tint is applied.
+    std::vector<fheroes2::RGB> tintPalette( const std::vector<fheroes2::RGB> & in, const float r, const float g, const float b, const float brightness,
+                                            const float saturation );
 }

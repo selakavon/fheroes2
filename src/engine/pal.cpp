@@ -20,8 +20,10 @@
 
 #include "pal.h"
 
+#include <algorithm>
 #include <array>
 #include <cassert>
+#include <cmath>
 #include <cstring>
 
 namespace
@@ -289,4 +291,31 @@ std::vector<uint8_t> PAL::CombinePalettes( const std::vector<uint8_t> & first, c
     }
 
     return combined;
+}
+
+std::vector<fheroes2::RGB> PAL::tintPalette( const std::vector<fheroes2::RGB> & in, const float r, const float g, const float b, const float brightness,
+                                             const float saturation )
+{
+    std::vector<fheroes2::RGB> out( in );
+
+    const float redFactor = r * brightness;
+    const float greenFactor = g * brightness;
+    const float blueFactor = b * brightness;
+
+    const auto clampToByte = []( const float value ) { return static_cast<uint8_t>( std::clamp( std::lround( value ), 0L, 255L ) ); };
+
+    // Entry 0 is kept untouched.
+    for ( size_t i = 1; i < out.size(); ++i ) {
+        const fheroes2::RGB & color = in[i];
+
+        const float luma = 0.299F * color.r + 0.587F * color.g + 0.114F * color.b;
+
+        const float red = luma + ( static_cast<float>( color.r ) - luma ) * saturation;
+        const float green = luma + ( static_cast<float>( color.g ) - luma ) * saturation;
+        const float blue = luma + ( static_cast<float>( color.b ) - luma ) * saturation;
+
+        out[i] = fheroes2::RGB( clampToByte( red * redFactor ), clampToByte( green * greenFactor ), clampToByte( blue * blueFactor ) );
+    }
+
+    return out;
 }

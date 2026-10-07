@@ -11,6 +11,15 @@ One line per task of [REMASTER_PLAN.md](REMASTER_PLAN.md). States: `todo`, `in p
 * P1.5 - done
 * P1.6 - done
 
+## Phase 2
+
+* P2.1 - done - 2f259867d
+* P2.2 - done
+* P2.3 - todo
+* P2.4 - todo
+* P2.5 - todo
+* P2.6 - todo
+
 ## Phase 1 exit criteria
 
 * Nearest mode screenshot-identical to `master`: yes (0 differing pixels, 1280x720 main menu under Xvfb).
@@ -22,6 +31,26 @@ One line per task of [REMASTER_PLAN.md](REMASTER_PLAN.md). States: `todo`, `in p
   valid, markdownlint clean, Debug and Release builds have no warnings in the touched files.
 
 ## Notes
+
+* P2.1 design change: `_gameOptions` has only five unused bits left, so the six visual effect flags live in a separate
+  `BitModes _fxOptions` member of `Settings`. The config keys are as planned (`fx day night`, ... `fx post processing
+  preset`). The Visual Effects dialog uses the empty option icon background with a short text (Sun, Leaf, Rain, Shade,
+  UI, FX) as icons until dedicated icons are drawn. The Graphics dialog second row became a three-option row (V-Sync,
+  System Info, Visual Effects). Post-Processing shows "N/A" and is not clickable unless the game is built with
+  `ENABLE_GPU_RENDERER` (P2.6).
+* P2.2: the tint is applied by `Display::subscribeRGBPalette()`; `Display::_renderFrame()` remembers the last colour
+  cycling index remap and re-pushes it with the tinted RGB palette, so water keeps animating in phase while tinted
+  (verified: two night screenshots one second apart differ only in the water). Custom palettes set through
+  `Display::changePalette()` by fades and videos are left alone; the tint returns on the first frame after the default
+  palette is restored (a small pop at the end of fade-ins, accepted). The 600 ms transition is driven by
+  `RenderProcessor::registerFullFrameRenderRequester()` polled from `LocalEvent::HandleEvents()`.
+* P2.2 dialog handling: `fheroes2::StandardWindow` and `Dialog::ResizableFrameBox` (all standard message boxes) report
+  themselves to `Ambience`, so the tint is removed while such a dialog is open and restored when it closes. Full-screen
+  game screens that are not dialogs (castle, hero, puzzle, kingdom overview) stay tinted. The battlefield window is
+  itself a `StandardWindow` and is excluded with `Ambience::rebaseDialogDepth()`. Verified headlessly: day 1 to day 8
+  screenshots show dawn, morning, noon, afternoon, dusk, evening, night and dawn again (side panel mean colour goes
+  125,90,61 at noon to 50,45,48 at night); with both tints off the main menu is pixel-identical to `master`; the end
+  turn confirmation dialog renders untinted at night. Battle tint was not verified headlessly.
 
 * P1.5: the resolution dialog already labelled scaled entries as "960 x 540 (x2.0)", so only the resolution
   list generation was extended (2x, 3x, 4x of the biggest screen resolution, even sizes, near-duplicates of

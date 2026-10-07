@@ -1894,25 +1894,53 @@ namespace fheroes2
 
     void Display::_renderFrame( const Rect & roi ) const
     {
-        bool updateImage = true;
+        bool isPaletteChanged = false;
+
         if ( _preprocessing ) {
             std::vector<uint8_t> palette;
             if ( _preprocessing( palette ) ) {
-                _engine->updatePalette( palette );
-                // when we change a palette for 8-bit image we unwillingly call render so we don't need to re-render the same frame again
-                updateImage = ( _renderSurface == nullptr );
-                if ( updateImage ) {
-                    // Pre-processing step is applied to the whole image so we forcefully render the full frame.
-                    _engine->render( *this, { 0, 0, width(), height() } );
-                    return;
+                _paletteIndexRemap = std::move( palette );
+                isPaletteChanged = true;
+            }
+        }
+
+        if ( _rgbProcessing ) {
+            const bool isProcessedPaletteInUse = ( !_processedRGBPalette.empty() && currentRGBPalette == _processedRGBPalette.data() );
+            const bool isDefaultPaletteInUse = ( currentRGBPalette == RGBPalette() );
+
+            // Custom palettes set by other code (fade effects, videos) are left untouched.
+            if ( isProcessedPaletteInUse || isDefaultPaletteInUse ) {
+                const fheroes2::RGB * defaultPalette = RGBPalette();
+                std::vector<RGB> palette( defaultPalette, defaultPalette + paletteSize );
+
+                if ( _rgbProcessing( palette ) ) {
+                    if ( !isProcessedPaletteInUse || palette != _processedRGBPalette ) {
+                        _processedRGBPalette = std::move( palette );
+                        currentRGBPalette = _processedRGBPalette.data();
+                        isPaletteChanged = true;
+                    }
+                }
+                else if ( isProcessedPaletteInUse ) {
+                    currentRGBPalette = RGBPalette();
+                    isPaletteChanged = true;
                 }
             }
         }
 
-        if ( updateImage ) {
-            // Make sure that we update the previously rendered area to avoid any ghost effect artefacts.
-            _engine->render( *this, getBoundaryRect( roi, _prevRoi ) );
+        if ( isPaletteChanged ) {
+            _engine->updatePalette( _paletteIndexRemap.empty() ? StandardPaletteIndexes() : _paletteIndexRemap );
+
+            // When we change a palette for 8-bit image we unwillingly call render so we don't need to re-render the same frame again.
+            if ( _renderSurface == nullptr ) {
+                // The palette change affects the whole image so we forcefully render the full frame.
+                _engine->render( *this, { 0, 0, width(), height() } );
+            }
+
+            return;
         }
+
+        // Make sure that we update the previously rendered area to avoid any ghost effect artefacts.
+        _engine->render( *this, getBoundaryRect( roi, _prevRoi ) );
     }
 
     uint8_t * Display::image()
@@ -1929,6 +1957,8 @@ namespace fheroes2
     {
         _preprocessing = nullptr;
         _postprocessing = nullptr;
+        _rgbProcessing = nullptr;
+        _paletteIndexRemap.clear();
 
         _cursor.reset();
         _engine->clear();
