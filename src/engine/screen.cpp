@@ -1138,6 +1138,14 @@ namespace
         fheroes2::PaletteScaler _scaler;
         fheroes2::PixelLayout _scalerLayout;
         uint32_t _scalerAlphaMask{ 0 };
+        // Copy of the indexed frame as it was last scaled, used to limit full-frame updates (e.g. colour cycling)
+        // to the rows which actually changed.
+        std::vector<uint8_t> _scaledSourceCopy;
+        bool _isScaledSourceCopyValid{ false };
+        std::array<uint32_t, fheroes2::paletteSize> _scalerPalette{};
+        // Palette entries whose colour changed since the last full-frame scaling.
+        std::array<bool, fheroes2::paletteSize> _changedPaletteEntries{};
+        bool _hasChangedPaletteEntries{ false };
 
         RenderEngine() = default;
 
@@ -1177,6 +1185,10 @@ namespace
             _scaledSize = {};
             _scaledFrame.clear();
             _scaledFrame.shrink_to_fit();
+            _scaledSourceCopy.clear();
+            _scaledSourceCopy.shrink_to_fit();
+            _isScaledSourceCopyValid = false;
+            _hasChangedPaletteEntries = false;
         }
 
         void render( const fheroes2::Display & display, const fheroes2::Rect & roi ) override
@@ -1523,6 +1535,8 @@ namespace
             }
 
             _scaledFrame.assign( static_cast<size_t>( _scaledSize.width ) * _scaledSize.height, 0 );
+            _scaledSourceCopy.clear();
+            _isScaledSourceCopyValid = false;
 
             return true;
         }
@@ -1538,17 +1552,26 @@ namespace
                              | ( static_cast<uint32_t>( color.b ) << _scalerLayout.blueShift ) | _scalerAlphaMask;
             }
 
+            if ( _scaler.isPaletteSet() ) {
+                for ( size_t i = 0; i < fheroes2::paletteSize; ++i ) {
+                    if ( palette[i] != _scalerPalette[i] ) {
+                        _changedPaletteEntries[i] = true;
+                        _hasChangedPaletteEntries = true;
+                    }
+                }
+            }
+            else {
+                _changedPaletteEntries.fill( true );
+                _hasChangedPaletteEntries = true;
+            }
+
+            _scalerPalette = palette;
             _scaler.setPalette( palette.data(), _scalerLayout );
         }
 
-        void _renderScaled( const fheroes2::Display & display, const fheroes2::Rect & roi )
+        // Scales the given source area and uploads the corresponding part of the texture.
+        void _scaleAndUpload( const uint8_t * src, const int32_t width, const int32_t height, const fheroes2::Rect & roi )
         {
-            assert( _useCpuScaler && _texture != nullptr && _scaler.isPaletteSet() );
-
-            const int32_t width = display.width();
-            const int32_t height = display.height();
-            const uint8_t * src = display.image();
-
             fheroes2::Rect dstRect;
 
             if ( scalingType() == fheroes2::ScalingType::XBRZ ) {
@@ -1580,6 +1603,76 @@ namespace
             if ( returnCode < 0 ) {
                 ERROR_LOG( "Failed to update scaled texture. The error value: " << returnCode << ", description: " << SDL_GetError() )
             }
+        }
+
+        void _renderScaled( const fheroes2::Display & display, const fheroes2::Rect & roi )
+        {
+            assert( _useCpuScaler && _texture != nullptr && _scaler.isPaletteSet() );
+
+            const int32_t width = display.width();
+            const int32_t height = display.height();
+            const uint8_t * src = display.image();
+            const size_t frameSize = static_cast<size_t>( width ) * height;
+
+            const bool isFullFrame = ( roi.x == 0 && roi.y == 0 && roi.width == width && roi.height == height );
+
+            if ( !isFullFrame || !_isScaledSourceCopyValid || _scaledSourceCopy.size() != frameSize ) {
+                _scaleAndUpload( src, width, height, roi );
+
+                // Keep the copy of the source frame in sync.
+                if ( _scaledSourceCopy.size() != frameSize ) {
+                    _scaledSourceCopy.assign( src, src + frameSize );
+                    _isScaledSourceCopyValid = isFullFrame;
+                }
+                else {
+                    for ( int32_t y = roi.y; y < roi.y + roi.height; ++y ) {
+                        const ptrdiff_t offset = static_cast<ptrdiff_t>( y ) * width + roi.x;
+                        memcpy( _scaledSourceCopy.data() + offset, src + offset, static_cast<size_t>( roi.width ) );
+                    }
+                    if ( isFullFrame ) {
+                        _isScaledSourceCopyValid = true;
+                    }
+                }
+
+                if ( isFullFrame ) {
+                    _changedPaletteEntries.fill( false );
+                    _hasChangedPaletteEntries = false;
+                }
+                return;
+            }
+
+            // A full-frame update, typically caused by colour cycling. Only rows whose pixels or whose colours
+            // changed since the last scaling need to be processed again.
+            int32_t bandBegin = -1;
+            for ( int32_t y = 0; y <= height; ++y ) {
+                bool isRowDirty = false;
+                if ( y < height ) {
+                    const uint8_t * row = src + static_cast<ptrdiff_t>( y ) * width;
+                    const uint8_t * previousRow = _scaledSourceCopy.data() + static_cast<ptrdiff_t>( y ) * width;
+
+                    if ( memcmp( row, previousRow, static_cast<size_t>( width ) ) != 0 ) {
+                        isRowDirty = true;
+                        memcpy( _scaledSourceCopy.data() + static_cast<ptrdiff_t>( y ) * width, row, static_cast<size_t>( width ) );
+                    }
+                    else if ( _hasChangedPaletteEntries ) {
+                        const uint8_t * rowEnd = row + width;
+                        isRowDirty = std::any_of( row, rowEnd, [this]( const uint8_t index ) { return _changedPaletteEntries[index]; } );
+                    }
+                }
+
+                if ( isRowDirty ) {
+                    if ( bandBegin < 0 ) {
+                        bandBegin = y;
+                    }
+                }
+                else if ( bandBegin >= 0 ) {
+                    _scaleAndUpload( src, width, height, { 0, bandBegin, width, y - bandBegin } );
+                    bandBegin = -1;
+                }
+            }
+
+            _changedPaletteEntries.fill( false );
+            _hasChangedPaletteEntries = false;
         }
 
         void _createPalette()
