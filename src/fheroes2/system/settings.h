@@ -217,6 +217,7 @@ public:
     bool isHideInterfaceEnabled() const;
     bool isArmyEstimationViewNumeric() const;
     bool isScreenScalingTypeNearest() const;
+    fheroes2::ScalingType getScreenScalingType() const;
     bool isEvilInterfaceEnabled() const;
     bool isBattleMovementAreaHighlightEnabled() const;
     bool isCursorSoftwareEmulationEnabled() const;
@@ -308,7 +309,7 @@ public:
     void setBattleDamageInfo( const bool enable );
     void setHideInterface( const bool enable );
     void setNumericArmyEstimationView( const bool enable );
-    void setScreenScalingTypeNearest( const bool enable );
+    void setScreenScalingType( const fheroes2::ScalingType type );
     void setHighlightBattleMovementArea( const bool enable );
     void setCursorSoftwareEmulation( const bool enable );
 
@@ -438,6 +439,7 @@ private:
     BitModes _editorOptions;
 
     fheroes2::ResolutionInfo _resolutionInfo;
+    fheroes2::ScalingType _screenScalingType{ fheroes2::ScalingType::NEAREST };
     fheroes2::Point _windowPos;
 
     int32_t _gameDifficulty;

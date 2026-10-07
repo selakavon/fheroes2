@@ -124,16 +124,30 @@ namespace
         fheroes2::drawOption( optionRoi, image, _( "System Info" ), isSystemInfoDisplayed ? _( "On" ) : _( "Off" ), fheroes2::UiOptionTextWidth::TWO_ELEMENTS_ROW );
     }
 
-    void drawScreenScalingTypeOptions( const fheroes2::Rect & optionRoi, const bool isScreenScalingTypeNearest )
+    void drawScreenScalingTypeOptions( const fheroes2::Rect & optionRoi, const fheroes2::ScalingType scalingType )
     {
-        if ( isScreenScalingTypeNearest ) {
-            fheroes2::drawOption( optionRoi, Assets::getImage( ICN::GAME_OPTION_ICON, 3 ), _( "Screen Scaling Type" ), _( "Nearest" ),
-                                  fheroes2::UiOptionTextWidth::THREE_ELEMENTS_ROW );
+        const char * name = nullptr;
+        uint32_t iconIndex = 2;
+
+        switch ( scalingType ) {
+        case fheroes2::ScalingType::LINEAR:
+            name = _( "scaling|Linear" );
+            break;
+        case fheroes2::ScalingType::XBRZ:
+            name = _( "scaling|xBRZ" );
+            break;
+        case fheroes2::ScalingType::SHARP:
+            name = _( "scaling|Sharp" );
+            break;
+        case fheroes2::ScalingType::NEAREST:
+        default:
+            name = _( "scaling|Nearest" );
+            iconIndex = 3;
+            break;
         }
-        else {
-            fheroes2::drawOption( optionRoi, Assets::getImage( ICN::GAME_OPTION_ICON, 2 ), _( "Screen Scaling Type" ), _( "Linear" ),
-                                  fheroes2::UiOptionTextWidth::THREE_ELEMENTS_ROW );
-        }
+
+        fheroes2::drawOption( optionRoi, Assets::getImage( ICN::GAME_OPTION_ICON, iconIndex ), _( "Screen Scaling Type" ), name,
+                              fheroes2::UiOptionTextWidth::THREE_ELEMENTS_ROW );
     }
 
     SelectedWindow showConfigurationWindow()
@@ -162,7 +176,7 @@ namespace
         const auto drawOptions = [&conf, &windowResolutionRoi, &windowModeRoi, &windowScreenScalingTypeRoi, &windowVSyncRoi, &windowSystemInfoRoi]() {
             drawResolution( windowResolutionRoi );
             drawMode( windowModeRoi );
-            drawScreenScalingTypeOptions( windowScreenScalingTypeRoi, conf.isScreenScalingTypeNearest() );
+            drawScreenScalingTypeOptions( windowScreenScalingTypeRoi, conf.getScreenScalingType() );
             drawVSync( windowVSyncRoi );
             drawSystemInfo( windowSystemInfoRoi );
         };
@@ -205,7 +219,7 @@ namespace
             else if ( le.isMouseRightButtonPressedInArea( windowScreenScalingTypeRoi ) ) {
                 fheroes2::showStandardTextMessage(
                     _( "Screen Scaling Type" ),
-                    _( "Toggle the type of screen scaling you want to use. Linear scaling makes the resized screen image blurry while nearest scaling preserves the sharpness of the original game. The nearest scaling looks best on integer scales, for example 2.0x or 3.0x." ),
+                    _( "Toggle the type of screen scaling you want to use. Nearest keeps every pixel sharp and looks best at integer scales, for example 2.0x or 3.0x. Linear smooths the image but makes it blurry. xBRZ reconstructs smooth edges from the pixel art and is the recommended option on large screens. Sharp applies an edge-preserving upscale with sharpening and works at any scale." ),
                     0 );
             }
             else if ( le.isMouseRightButtonPressedInArea( windowVSyncRoi ) ) {
@@ -264,7 +278,7 @@ namespace fheroes2
                 windowType = SelectedWindow::Configuration;
                 break;
             case SelectedWindow::ScreenScalingType:
-                conf.setScreenScalingTypeNearest( !conf.isScreenScalingTypeNearest() );
+                conf.setScreenScalingType( static_cast<fheroes2::ScalingType>( ( static_cast<int>( conf.getScreenScalingType() ) + 1 ) % fheroes2::scalingTypeCount ) );
                 saveConfiguration = true;
                 windowType = SelectedWindow::Configuration;
 

@@ -36,6 +36,26 @@ namespace fheroes2
     class Display;
     struct RGB;
 
+    // The way the rendered frame is scaled to the window (or screen) size.
+    enum class ScalingType : int
+    {
+        // SDL nearest-neighbour stretch. Pixel-perfect at integer scales.
+        NEAREST = 0,
+        // SDL bilinear stretch. Blurry but smooth at non-integer scales.
+        LINEAR = 1,
+        // CPU pixel-art reconstruction (xBRZ) at an integer scale, followed by a linear stretch if needed.
+        XBRZ = 2,
+        // CPU edge-adaptive upscale with contrast-adaptive sharpening. Supports non-integer scales.
+        SHARP = 3
+    };
+
+    inline constexpr int scalingTypeCount{ 4 };
+
+    inline bool isCpuScalingType( const ScalingType type )
+    {
+        return type == ScalingType::XBRZ || type == ScalingType::SHARP;
+    }
+
     struct ResolutionInfo
     {
         ResolutionInfo() = default;
@@ -130,14 +150,21 @@ namespace fheroes2
             // Do nothing.
         }
 
-        void setNearestScaling( const bool enable )
+        virtual void setScalingType( const ScalingType type )
         {
-            _nearestScaling = enable;
+            _scalingType = type;
         }
 
+        ScalingType scalingType() const
+        {
+            return _scalingType;
+        }
+
+        // Returns true only for the nearest-neighbour mode. Used by the code which generates
+        // pre-scaled assets and by the backends to pick the texture filter.
         bool isNearestScaling() const
         {
-            return _nearestScaling;
+            return _scalingType == ScalingType::NEAREST;
         }
 
         virtual Point getWindowPos() const
@@ -184,7 +211,7 @@ namespace fheroes2
     private:
         bool _isFullScreen{ false };
 
-        bool _nearestScaling{ false };
+        ScalingType _scalingType{ ScalingType::NEAREST };
     };
 
     class Display final : public Image

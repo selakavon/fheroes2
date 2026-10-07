@@ -25,6 +25,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <sstream>
+#include <string>
 #include <utility>
 
 #if defined( MACOS_APP_BUNDLE )
@@ -77,7 +78,8 @@ namespace
         GAME_BATTLE_AUTO_RESOLVE = 0x04000000,
         GAME_BATTLE_AUTO_SPELLCAST = 0x08000000,
         GAME_AUTO_SAVE_AT_BEGINNING_OF_TURN = 0x10000000,
-        GAME_SCREEN_SCALING_TYPE_NEAREST = 0x20000000,
+        // This bit was used by the boolean 'nearest' screen scaling flag. It is kept reserved on purpose.
+        UNUSED_3 = 0x20000000,
         GAME_NUMERIC_ARMY_ESTIMATION_VIEW = 0x40000000,
     };
 
@@ -87,6 +89,37 @@ namespace
         EDITOR_ANIMATION = 0x00000002,
         EDITOR_PASSABILITY = 0x00000004
     };
+
+    const char * scalingTypeToString( const fheroes2::ScalingType type )
+    {
+        switch ( type ) {
+        case fheroes2::ScalingType::LINEAR:
+            return "linear";
+        case fheroes2::ScalingType::XBRZ:
+            return "xbrz";
+        case fheroes2::ScalingType::SHARP:
+            return "sharp";
+        case fheroes2::ScalingType::NEAREST:
+        default:
+            return "nearest";
+        }
+    }
+
+    fheroes2::ScalingType scalingTypeFromString( const std::string & value )
+    {
+        if ( value == "linear" ) {
+            return fheroes2::ScalingType::LINEAR;
+        }
+        if ( value == "xbrz" ) {
+            return fheroes2::ScalingType::XBRZ;
+        }
+        if ( value == "sharp" ) {
+            return fheroes2::ScalingType::SHARP;
+        }
+
+        // Unknown values (including the legacy ones) fall back to the pixel-perfect mode.
+        return fheroes2::ScalingType::NEAREST;
+    }
 
     const int defaultSpeedDelay{ 5 };
 }
@@ -358,7 +391,7 @@ bool Settings::Read( const std::string & filePath )
     }
 
     if ( config.Exists( "screen scaling type" ) ) {
-        setScreenScalingTypeNearest( config.StrParams( "screen scaling type" ) == "nearest" );
+        setScreenScalingType( scalingTypeFromString( config.StrParams( "screen scaling type" ) ) );
     }
 
     if ( config.Exists( "editor animation" ) ) {
@@ -556,8 +589,8 @@ std::string Settings::getOptionsString() const
     os << std::endl << "# Enable cursor software rendering: on/off" << std::endl;
     os << "cursor soft rendering = " << ( _gameOptions.Modes( GAME_CURSOR_SOFT_EMULATION ) ? "on" : "off" ) << std::endl;
 
-    os << std::endl << "# Screen scaling type: nearest or linear" << std::endl;
-    os << "screen scaling type = " << ( _gameOptions.Modes( GAME_SCREEN_SCALING_TYPE_NEAREST ) ? "nearest" : "linear" ) << std::endl;
+    os << std::endl << "# Screen scaling type: nearest, linear, xbrz or sharp" << std::endl;
+    os << "screen scaling type = " << scalingTypeToString( _screenScalingType ) << std::endl;
 
     os << std::endl << "# Show object animation in the Editor: on/off" << std::endl;
     os << "editor animation = " << ( _editorOptions.Modes( EDITOR_ANIMATION ) ? "on" : "off" ) << std::endl;
@@ -900,17 +933,12 @@ void Settings::setNumericArmyEstimationView( const bool enable )
     }
 }
 
-void Settings::setScreenScalingTypeNearest( const bool enable )
+void Settings::setScreenScalingType( const fheroes2::ScalingType type )
 {
-    if ( enable ) {
-        _gameOptions.SetModes( GAME_SCREEN_SCALING_TYPE_NEAREST );
-    }
-    else {
-        _gameOptions.ResetModes( GAME_SCREEN_SCALING_TYPE_NEAREST );
-    }
+    _screenScalingType = type;
 
-    if ( enable != fheroes2::engine().isNearestScaling() ) {
-        fheroes2::engine().setNearestScaling( enable );
+    if ( type != fheroes2::engine().scalingType() ) {
+        fheroes2::engine().setScalingType( type );
     }
 }
 
@@ -986,7 +1014,12 @@ bool Settings::isArmyEstimationViewNumeric() const
 
 bool Settings::isScreenScalingTypeNearest() const
 {
-    return _gameOptions.Modes( GAME_SCREEN_SCALING_TYPE_NEAREST );
+    return _screenScalingType == fheroes2::ScalingType::NEAREST;
+}
+
+fheroes2::ScalingType Settings::getScreenScalingType() const
+{
+    return _screenScalingType;
 }
 
 bool Settings::isEvilInterfaceEnabled() const
