@@ -86,6 +86,17 @@ enum class BattleTurnOrderState : uint8_t
     BOTTOM = 2
 };
 
+// Post-processing preset used by the optional GPU render backend.
+enum class PostProcessPreset : uint8_t
+{
+    NONE = 0,
+    BLOOM = 1,
+    VIGNETTE = 2,
+    CRT = 3
+};
+
+inline constexpr int postProcessPresetCount{ 4 };
+
 class Settings
 {
 public:
@@ -221,6 +232,27 @@ public:
     bool isEvilInterfaceEnabled() const;
     bool isBattleMovementAreaHighlightEnabled() const;
     bool isCursorSoftwareEmulationEnabled() const;
+
+    // Visual effects (remaster). All of them are off by default.
+    bool isFxDayNightEnabled() const;
+    bool isFxSeasonTintEnabled() const;
+    bool isFxWeatherEnabled() const;
+    bool isFxEnhancedShadowsEnabled() const;
+    bool isFxModernUiEnabled() const;
+    bool isFxPostProcessingEnabled() const;
+
+    PostProcessPreset getPostProcessPreset() const
+    {
+        return _postProcessPreset;
+    }
+
+    void setFxDayNight( const bool enable );
+    void setFxSeasonTint( const bool enable );
+    void setFxWeather( const bool enable );
+    void setFxEnhancedShadows( const bool enable );
+    void setFxModernUi( const bool enable );
+    void setFxPostProcessing( const bool enable );
+    void setPostProcessPreset( const PostProcessPreset preset );
 
     void setInterfaceType( const InterfaceType type )
     {
@@ -437,6 +469,10 @@ private:
 
     // Editor related options.
     BitModes _editorOptions;
+
+    // Visual effects options (remaster). Kept apart from _gameOptions which has almost no free bits left.
+    BitModes _fxOptions;
+    PostProcessPreset _postProcessPreset{ PostProcessPreset::NONE };
 
     fheroes2::ResolutionInfo _resolutionInfo;
     fheroes2::ScalingType _screenScalingType{ fheroes2::ScalingType::NEAREST };

@@ -26,6 +26,7 @@
 
 #include "cursor.h"
 #include "dialog_resolution.h"
+#include "dialog_visual_effects.h"
 #include "game_assets.h"
 #include "game_hotkeys.h"
 #include "game_mainmenu_ui.h"
@@ -35,6 +36,7 @@
 #include "math_base.h"
 #include "screen.h"
 #include "settings.h"
+#include "tools.h"
 #include "translations.h"
 #include "ui_button.h"
 #include "ui_dialog.h"
@@ -52,6 +54,7 @@ namespace
         ScreenScalingType,
         VSync,
         SystemInfo,
+        VisualEffects,
         Exit
     };
 
@@ -61,9 +64,11 @@ namespace
     const fheroes2::Rect screenScalingTypeRoi{ fheroes2::threeOptionsOffsetX + fheroes2::threeOptionsStepX * 2, fheroes2::optionsOffsetY, fheroes2::optionIconSize,
                                                fheroes2::optionIconSize };
 
-    const fheroes2::Rect vSyncRoi{ fheroes2::twoOptionsOffsetX, fheroes2::optionsOffsetY + fheroes2::optionsStepY, fheroes2::optionIconSize, fheroes2::optionIconSize };
-    const fheroes2::Rect systemInfoRoi{ fheroes2::twoOptionsOffsetX + fheroes2::twoOptionsStepX, fheroes2::optionsOffsetY + fheroes2::optionsStepY,
+    const fheroes2::Rect vSyncRoi{ fheroes2::threeOptionsOffsetX, fheroes2::optionsOffsetY + fheroes2::optionsStepY, fheroes2::optionIconSize, fheroes2::optionIconSize };
+    const fheroes2::Rect systemInfoRoi{ fheroes2::threeOptionsOffsetX + fheroes2::threeOptionsStepX, fheroes2::optionsOffsetY + fheroes2::optionsStepY,
                                         fheroes2::optionIconSize, fheroes2::optionIconSize };
+    const fheroes2::Rect visualEffectsRoi{ fheroes2::threeOptionsOffsetX + fheroes2::threeOptionsStepX * 2, fheroes2::optionsOffsetY + fheroes2::optionsStepY,
+                                           fheroes2::optionIconSize, fheroes2::optionIconSize };
 
     void drawResolution( const fheroes2::Rect & optionRoi )
     {
@@ -104,7 +109,7 @@ namespace
         const bool isVSyncEnabled = Settings::Get().isVSyncEnabled();
 
         fheroes2::drawOption( optionRoi, Assets::getImage( ICN::SPANEL, isVSyncEnabled ? 18 : 19 ), _( "V-Sync" ), isVSyncEnabled ? _( "On" ) : _( "Off" ),
-                              fheroes2::UiOptionTextWidth::TWO_ELEMENTS_ROW );
+                              fheroes2::UiOptionTextWidth::THREE_ELEMENTS_ROW );
     }
 
     void drawSystemInfo( const fheroes2::Rect & optionRoi )
@@ -121,7 +126,31 @@ namespace
         }
         info.draw( ( image.width() - info.width() ) / 2, ( image.height() - info.height() ) / 2, image );
 
-        fheroes2::drawOption( optionRoi, image, _( "System Info" ), isSystemInfoDisplayed ? _( "On" ) : _( "Off" ), fheroes2::UiOptionTextWidth::TWO_ELEMENTS_ROW );
+        fheroes2::drawOption( optionRoi, image, _( "System Info" ), isSystemInfoDisplayed ? _( "On" ) : _( "Off" ), fheroes2::UiOptionTextWidth::THREE_ELEMENTS_ROW );
+    }
+
+    void drawVisualEffects( const fheroes2::Rect & optionRoi )
+    {
+        const Settings & conf = Settings::Get();
+        const int32_t enabledCount = ( conf.isFxDayNightEnabled() ? 1 : 0 ) + ( conf.isFxSeasonTintEnabled() ? 1 : 0 ) + ( conf.isFxWeatherEnabled() ? 1 : 0 )
+                                     + ( conf.isFxEnhancedShadowsEnabled() ? 1 : 0 ) + ( conf.isFxModernUiEnabled() ? 1 : 0 )
+                                     + ( conf.isFxPostProcessingEnabled() ? 1 : 0 );
+
+        fheroes2::Sprite image = Assets::getImage( ICN::EMPTY_OPTION_ICON_BACKGROUND, 0 );
+        const fheroes2::Text info( _( "fxIcon|FX" ),
+                                   fheroes2::FontType( fheroes2::FontSize::NORMAL, enabledCount > 0 ? fheroes2::FontColor::YELLOW : fheroes2::FontColor::GRAY ) );
+        info.draw( ( image.width() - info.width() ) / 2, ( image.height() - info.height() ) / 2, image );
+
+        std::string value;
+        if ( enabledCount == 0 ) {
+            value = _( "Off" );
+        }
+        else {
+            value = _( "%{count} on" );
+            StringReplace( value, "%{count}", enabledCount );
+        }
+
+        fheroes2::drawOption( optionRoi, image, _( "Visual Effects" ), std::move( value ), fheroes2::UiOptionTextWidth::THREE_ELEMENTS_ROW );
     }
 
     void drawScreenScalingTypeOptions( const fheroes2::Rect & optionRoi, const fheroes2::ScalingType scalingType )
@@ -172,14 +201,17 @@ namespace
         const fheroes2::Rect windowScreenScalingTypeRoi( screenScalingTypeRoi + windowRoi.getPosition() );
         const fheroes2::Rect windowVSyncRoi( vSyncRoi + windowRoi.getPosition() );
         const fheroes2::Rect windowSystemInfoRoi( systemInfoRoi + windowRoi.getPosition() );
+        const fheroes2::Rect windowVisualEffectsRoi( visualEffectsRoi + windowRoi.getPosition() );
 
-        const auto drawOptions = [&conf, &windowResolutionRoi, &windowModeRoi, &windowScreenScalingTypeRoi, &windowVSyncRoi, &windowSystemInfoRoi]() {
-            drawResolution( windowResolutionRoi );
-            drawMode( windowModeRoi );
-            drawScreenScalingTypeOptions( windowScreenScalingTypeRoi, conf.getScreenScalingType() );
-            drawVSync( windowVSyncRoi );
-            drawSystemInfo( windowSystemInfoRoi );
-        };
+        const auto drawOptions
+            = [&conf, &windowResolutionRoi, &windowModeRoi, &windowScreenScalingTypeRoi, &windowVSyncRoi, &windowSystemInfoRoi, &windowVisualEffectsRoi]() {
+                  drawResolution( windowResolutionRoi );
+                  drawMode( windowModeRoi );
+                  drawScreenScalingTypeOptions( windowScreenScalingTypeRoi, conf.getScreenScalingType() );
+                  drawVSync( windowVSyncRoi );
+                  drawSystemInfo( windowSystemInfoRoi );
+                  drawVisualEffects( windowVisualEffectsRoi );
+              };
 
         drawOptions();
 
@@ -209,6 +241,9 @@ namespace
             if ( le.MouseClickLeft( windowSystemInfoRoi ) ) {
                 return SelectedWindow::SystemInfo;
             }
+            if ( le.MouseClickLeft( windowVisualEffectsRoi ) ) {
+                return SelectedWindow::VisualEffects;
+            }
 
             if ( le.isMouseRightButtonPressedInArea( windowResolutionRoi ) ) {
                 fheroes2::showStandardTextMessage( _( "Select Game Resolution" ), _( "Change the resolution of the game." ), 0 );
@@ -225,8 +260,13 @@ namespace
             else if ( le.isMouseRightButtonPressedInArea( windowVSyncRoi ) ) {
                 fheroes2::showStandardTextMessage( _( "V-Sync" ), _( "The V-Sync option can be enabled to resolve flickering issues on some monitors." ), 0 );
             }
-            if ( le.isMouseRightButtonPressedInArea( windowSystemInfoRoi ) ) {
+            else if ( le.isMouseRightButtonPressedInArea( windowSystemInfoRoi ) ) {
                 fheroes2::showStandardTextMessage( _( "System Info" ), _( "Show extra information such as FPS and current time." ), 0 );
+            }
+            else if ( le.isMouseRightButtonPressedInArea( windowVisualEffectsRoi ) ) {
+                fheroes2::showStandardTextMessage(
+                    _( "Visual Effects" ),
+                    _( "Configure the optional visual effects: day/night cycle, seasonal tint, weather, enhanced shadows, UI skin and post-processing." ), 0 );
             }
             else if ( le.isMouseRightButtonPressedInArea( buttonOk.area() ) ) {
                 fheroes2::showStandardTextMessage( _( "Okay" ), _( "Exit this menu." ), 0 );
@@ -298,6 +338,10 @@ namespace fheroes2
             case SelectedWindow::SystemInfo:
                 conf.setSystemInfo( !conf.isSystemInfoEnabled() );
                 saveConfiguration = true;
+                windowType = SelectedWindow::Configuration;
+                break;
+            case SelectedWindow::VisualEffects:
+                saveConfiguration |= openVisualEffectsDialog( updateUI );
                 windowType = SelectedWindow::Configuration;
                 break;
             default:

@@ -90,6 +90,48 @@ namespace
         EDITOR_PASSABILITY = 0x00000004
     };
 
+    enum FxOptions : uint32_t
+    {
+        GAME_FX_DAY_NIGHT = 0x00000001,
+        GAME_FX_SEASON_TINT = 0x00000002,
+        GAME_FX_WEATHER = 0x00000004,
+        GAME_FX_ENHANCED_SHADOWS = 0x00000008,
+        GAME_FX_MODERN_UI = 0x00000010,
+        GAME_FX_POSTPROCESS = 0x00000020
+    };
+
+    const char * postProcessPresetToString( const PostProcessPreset preset )
+    {
+        switch ( preset ) {
+        case PostProcessPreset::BLOOM:
+            return "bloom";
+        case PostProcessPreset::VIGNETTE:
+            return "vignette";
+        case PostProcessPreset::CRT:
+            return "crt";
+        case PostProcessPreset::NONE:
+        default:
+            break;
+        }
+
+        return "none";
+    }
+
+    PostProcessPreset postProcessPresetFromString( const std::string & value )
+    {
+        if ( value == "bloom" ) {
+            return PostProcessPreset::BLOOM;
+        }
+        if ( value == "vignette" ) {
+            return PostProcessPreset::VIGNETTE;
+        }
+        if ( value == "crt" ) {
+            return PostProcessPreset::CRT;
+        }
+
+        return PostProcessPreset::NONE;
+    }
+
     const char * scalingTypeToString( const fheroes2::ScalingType type )
     {
         switch ( type ) {
@@ -394,6 +436,34 @@ bool Settings::Read( const std::string & filePath )
         setScreenScalingType( scalingTypeFromString( config.StrParams( "screen scaling type" ) ) );
     }
 
+    if ( config.Exists( "fx day night" ) ) {
+        setFxDayNight( config.StrParams( "fx day night" ) == "on" );
+    }
+
+    if ( config.Exists( "fx season tint" ) ) {
+        setFxSeasonTint( config.StrParams( "fx season tint" ) == "on" );
+    }
+
+    if ( config.Exists( "fx weather" ) ) {
+        setFxWeather( config.StrParams( "fx weather" ) == "on" );
+    }
+
+    if ( config.Exists( "fx enhanced shadows" ) ) {
+        setFxEnhancedShadows( config.StrParams( "fx enhanced shadows" ) == "on" );
+    }
+
+    if ( config.Exists( "fx modern ui" ) ) {
+        setFxModernUi( config.StrParams( "fx modern ui" ) == "on" );
+    }
+
+    if ( config.Exists( "fx post processing" ) ) {
+        setFxPostProcessing( config.StrParams( "fx post processing" ) == "on" );
+    }
+
+    if ( config.Exists( "fx post processing preset" ) ) {
+        setPostProcessPreset( postProcessPresetFromString( config.StrParams( "fx post processing preset" ) ) );
+    }
+
     if ( config.Exists( "editor animation" ) ) {
         setEditorAnimation( config.StrParams( "editor animation" ) == "on" );
     }
@@ -591,6 +661,27 @@ std::string Settings::getOptionsString() const
 
     os << std::endl << "# Screen scaling type: nearest, linear, xbrz or sharp" << std::endl;
     os << "screen scaling type = " << scalingTypeToString( _screenScalingType ) << std::endl;
+
+    os << std::endl << "# Visual effects. Day/night lighting cycle on the Adventure Map and in battle: on/off" << std::endl;
+    os << "fx day night = " << ( _fxOptions.Modes( GAME_FX_DAY_NIGHT ) ? "on" : "off" ) << std::endl;
+
+    os << std::endl << "# Seasonal colour tint depending on the in-game month: on/off" << std::endl;
+    os << "fx season tint = " << ( _fxOptions.Modes( GAME_FX_SEASON_TINT ) ? "on" : "off" ) << std::endl;
+
+    os << std::endl << "# Weather effects (rain, snow, fog, leaves) on the Adventure Map: on/off" << std::endl;
+    os << "fx weather = " << ( _fxOptions.Modes( GAME_FX_WEATHER ) ? "on" : "off" ) << std::endl;
+
+    os << std::endl << "# Soft gradient shadows for map objects, heroes and creatures: on/off" << std::endl;
+    os << "fx enhanced shadows = " << ( _fxOptions.Modes( GAME_FX_ENHANCED_SHADOWS ) ? "on" : "off" ) << std::endl;
+
+    os << std::endl << "# Modern user interface skin: on/off" << std::endl;
+    os << "fx modern ui = " << ( _fxOptions.Modes( GAME_FX_MODERN_UI ) ? "on" : "off" ) << std::endl;
+
+    os << std::endl << "# GPU post-processing (only in builds with the GPU renderer): on/off" << std::endl;
+    os << "fx post processing = " << ( _fxOptions.Modes( GAME_FX_POSTPROCESS ) ? "on" : "off" ) << std::endl;
+
+    os << std::endl << "# GPU post-processing preset: none, bloom, vignette or crt" << std::endl;
+    os << "fx post processing preset = " << postProcessPresetToString( _postProcessPreset ) << std::endl;
 
     os << std::endl << "# Show object animation in the Editor: on/off" << std::endl;
     os << "editor animation = " << ( _editorOptions.Modes( EDITOR_ANIMATION ) ? "on" : "off" ) << std::endl;
@@ -867,6 +958,71 @@ void Settings::set3DAudio( const bool enable )
     else {
         _gameOptions.ResetModes( GAME_3D_AUDIO );
     }
+}
+
+bool Settings::isFxDayNightEnabled() const
+{
+    return _fxOptions.Modes( GAME_FX_DAY_NIGHT );
+}
+
+bool Settings::isFxSeasonTintEnabled() const
+{
+    return _fxOptions.Modes( GAME_FX_SEASON_TINT );
+}
+
+bool Settings::isFxWeatherEnabled() const
+{
+    return _fxOptions.Modes( GAME_FX_WEATHER );
+}
+
+bool Settings::isFxEnhancedShadowsEnabled() const
+{
+    return _fxOptions.Modes( GAME_FX_ENHANCED_SHADOWS );
+}
+
+bool Settings::isFxModernUiEnabled() const
+{
+    return _fxOptions.Modes( GAME_FX_MODERN_UI );
+}
+
+bool Settings::isFxPostProcessingEnabled() const
+{
+    return _fxOptions.Modes( GAME_FX_POSTPROCESS );
+}
+
+void Settings::setFxDayNight( const bool enable )
+{
+    enable ? _fxOptions.SetModes( GAME_FX_DAY_NIGHT ) : _fxOptions.ResetModes( GAME_FX_DAY_NIGHT );
+}
+
+void Settings::setFxSeasonTint( const bool enable )
+{
+    enable ? _fxOptions.SetModes( GAME_FX_SEASON_TINT ) : _fxOptions.ResetModes( GAME_FX_SEASON_TINT );
+}
+
+void Settings::setFxWeather( const bool enable )
+{
+    enable ? _fxOptions.SetModes( GAME_FX_WEATHER ) : _fxOptions.ResetModes( GAME_FX_WEATHER );
+}
+
+void Settings::setFxEnhancedShadows( const bool enable )
+{
+    enable ? _fxOptions.SetModes( GAME_FX_ENHANCED_SHADOWS ) : _fxOptions.ResetModes( GAME_FX_ENHANCED_SHADOWS );
+}
+
+void Settings::setFxModernUi( const bool enable )
+{
+    enable ? _fxOptions.SetModes( GAME_FX_MODERN_UI ) : _fxOptions.ResetModes( GAME_FX_MODERN_UI );
+}
+
+void Settings::setFxPostProcessing( const bool enable )
+{
+    enable ? _fxOptions.SetModes( GAME_FX_POSTPROCESS ) : _fxOptions.ResetModes( GAME_FX_POSTPROCESS );
+}
+
+void Settings::setPostProcessPreset( const PostProcessPreset preset )
+{
+    _postProcessPreset = preset;
 }
 
 void Settings::setVSync( const bool enable )
