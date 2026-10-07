@@ -24,6 +24,7 @@
 #include <array>
 #include <cassert>
 #include <cmath>
+#include <cstddef>
 #include <cstring>
 #include <iterator>
 #include <optional>
@@ -62,6 +63,7 @@
 #endif
 
 #include "image_palette.h"
+#include "image_scaler.h"
 #include "logging.h"
 #include "math_tools.h"
 #include "system.h"
@@ -1097,6 +1099,17 @@ namespace
 
         bool _isVSyncEnabled{ false };
 
+        // CPU upscaling (xBRZ and Sharp scaling types). The frame is scaled on the CPU into '_scaledFrame'
+        // which is uploaded into a '_scaledSize' texture. The renderer's logical size stays equal to the
+        // game resolution so input handling is not affected; the remaining (non-integer) stretch is done by SDL.
+        bool _useCpuScaler{ false };
+        int32_t _cpuScale{ 1 };
+        fheroes2::Size _scaledSize;
+        std::vector<uint32_t> _scaledFrame;
+        fheroes2::PaletteScaler _scaler;
+        fheroes2::PixelLayout _scalerLayout;
+        uint32_t _scalerAlphaMask{ 0 };
+
         RenderEngine() = default;
 
         void clear() override
@@ -1129,35 +1142,46 @@ namespace
 
             _driverIndex = -1;
             _windowedSize = {};
+
+            _useCpuScaler = false;
+            _cpuScale = 1;
+            _scaledSize = {};
+            _scaledFrame.clear();
+            _scaledFrame.shrink_to_fit();
         }
 
         void render( const fheroes2::Display & display, const fheroes2::Rect & roi ) override
         {
-            if ( _surface == nullptr ) {
+            if ( _texture == nullptr || _renderer == nullptr ) {
                 return;
             }
 
-            assert( _renderer != nullptr && _texture != nullptr );
-
-            copyImageToSurface( display, _surface, roi );
-
-            const bool fullFrame = ( roi.width == display.width() ) && ( roi.height == display.height() );
-            if ( fullFrame ) {
-                const int returnCode = SDL_UpdateTexture( _texture, nullptr, _surface->pixels, _surface->pitch );
-                if ( returnCode < 0 ) {
-                    ERROR_LOG( "Failed to update texture. The error value: " << returnCode << ", description: " << SDL_GetError() )
-                }
+            if ( _useCpuScaler ) {
+                _renderScaled( display, roi );
             }
             else {
-                SDL_Rect area;
-                area.x = roi.x;
-                area.y = roi.y;
-                area.w = roi.width;
-                area.h = roi.height;
+                assert( _surface != nullptr );
 
-                const int returnCode = SDL_UpdateTexture( _texture, &area, _surface->pixels, _surface->pitch );
-                if ( returnCode < 0 ) {
-                    ERROR_LOG( "Failed to update texture. The error value: " << returnCode << ", description: " << SDL_GetError() )
+                copyImageToSurface( display, _surface, roi );
+
+                const bool fullFrame = ( roi.width == display.width() ) && ( roi.height == display.height() );
+                if ( fullFrame ) {
+                    const int returnCode = SDL_UpdateTexture( _texture, nullptr, _surface->pixels, _surface->pitch );
+                    if ( returnCode < 0 ) {
+                        ERROR_LOG( "Failed to update texture. The error value: " << returnCode << ", description: " << SDL_GetError() )
+                    }
+                }
+                else {
+                    SDL_Rect area;
+                    area.x = roi.x;
+                    area.y = roi.y;
+                    area.w = roi.width;
+                    area.h = roi.height;
+
+                    const int returnCode = SDL_UpdateTexture( _texture, &area, _surface->pixels, _surface->pitch );
+                    if ( returnCode < 0 ) {
+                        ERROR_LOG( "Failed to update texture. The error value: " << returnCode << ", description: " << SDL_GetError() )
+                    }
                 }
             }
 
@@ -1227,6 +1251,11 @@ namespace
 
             _syncFullScreen();
 
+            // The display might still be linked to the pixel buffer of a previously destroyed 8-bit surface.
+            linkRenderSurface( nullptr );
+
+            _setupCpuScaler( resolutionInfo );
+
             bool isPaletteModeSupported = false;
 
             SDL_RendererInfo rendererInfo;
@@ -1268,19 +1297,26 @@ namespace
                 ERROR_LOG( "Failed to get the number of render drivers. The error value: " << driverCount << ", description: " << SDL_GetError() )
             }
 
-            _surface = SDL_CreateRGBSurface( 0, resolutionInfo.gameWidth, resolutionInfo.gameHeight, isPaletteModeSupported ? 8 : 32, 0, 0, 0, 0 );
-            if ( _surface == nullptr ) {
-                ERROR_LOG( "Failed to create a surface of " << resolutionInfo.gameWidth << " x " << resolutionInfo.gameHeight << " size. The error: " << SDL_GetError() )
-                clear();
-                return false;
+            if ( _useCpuScaler ) {
+                // The CPU scaler reads the indexed frame directly from the display and produces a 32-bit texture. No intermediate surface is needed.
+                isPaletteModeSupported = false;
             }
+            else {
+                _surface = SDL_CreateRGBSurface( 0, resolutionInfo.gameWidth, resolutionInfo.gameHeight, isPaletteModeSupported ? 8 : 32, 0, 0, 0, 0 );
+                if ( _surface == nullptr ) {
+                    ERROR_LOG( "Failed to create a surface of " << resolutionInfo.gameWidth << " x " << resolutionInfo.gameHeight
+                                                                << " size. The error: " << SDL_GetError() )
+                    clear();
+                    return false;
+                }
 
-            if ( _surface->w <= 0 || _surface->h <= 0 || _surface->w != resolutionInfo.gameWidth || _surface->h != resolutionInfo.gameHeight ) {
-                clear();
-                return false;
+                if ( _surface->w <= 0 || _surface->h <= 0 || _surface->w != resolutionInfo.gameWidth || _surface->h != resolutionInfo.gameHeight ) {
+                    clear();
+                    return false;
+                }
+
+                _createPalette();
             }
-
-            _createPalette();
 
             _renderer = SDL_CreateRenderer( _window, _driverIndex, SDL_RENDERER_ACCELERATED );
             if ( _renderer == nullptr ) {
@@ -1298,7 +1334,8 @@ namespace
                 ERROR_LOG( "Failed to set render target to window. The error value: " << returnCode << ", description: " << SDL_GetError() )
             }
 
-            if ( SDL_SetHint( SDL_HINT_RENDER_SCALE_QUALITY, ( isNearestScaling() ? "nearest" : "linear" ) ) == SDL_FALSE ) {
+            // When the CPU scaler is used the texture is already (super)sampled, the remaining stretch must be smooth.
+            if ( SDL_SetHint( SDL_HINT_RENDER_SCALE_QUALITY, ( !_useCpuScaler && isNearestScaling() ) ? "nearest" : "linear" ) == SDL_FALSE ) {
                 ERROR_LOG( "Failed to set the " SDL_HINT_RENDER_SCALE_QUALITY " hint." )
             }
 
@@ -1315,12 +1352,22 @@ namespace
                 return false;
             }
 
-            _texture = SDL_CreateTextureFromSurface( _renderer, _surface );
-            if ( _texture == nullptr ) {
-                ERROR_LOG( "Failed to create a texture from a surface of " << resolutionInfo.gameWidth << " x " << resolutionInfo.gameHeight
-                                                                           << " size. The error: " << SDL_GetError() )
-                clear();
-                return false;
+            if ( _useCpuScaler ) {
+                if ( !_createScaledTexture() ) {
+                    clear();
+                    return false;
+                }
+
+                _createPalette();
+            }
+            else {
+                _texture = SDL_CreateTextureFromSurface( _renderer, _surface );
+                if ( _texture == nullptr ) {
+                    ERROR_LOG( "Failed to create a texture from a surface of " << resolutionInfo.gameWidth << " x " << resolutionInfo.gameHeight
+                                                                               << " size. The error: " << SDL_GetError() )
+                    clear();
+                    return false;
+                }
             }
 
             if ( !_retrieveWindowInfo() ) {
@@ -1336,7 +1383,17 @@ namespace
 
         void updatePalette( const std::vector<uint8_t> & colorIds ) override
         {
-            if ( _surface == nullptr || colorIds.size() != 256 )
+            if ( colorIds.size() != 256 )
+                return;
+
+            if ( _useCpuScaler ) {
+                if ( _texture != nullptr ) {
+                    _updateScalerPalette( colorIds );
+                }
+                return;
+            }
+
+            if ( _surface == nullptr )
                 return;
 
             generatePalette( colorIds, _surface );
@@ -1353,14 +1410,157 @@ namespace
             return ( _window != nullptr ) && ( ( SDL_GetWindowFlags( _window ) & SDL_WINDOW_MOUSE_FOCUS ) == SDL_WINDOW_MOUSE_FOCUS );
         }
 
+        void _setupCpuScaler( const fheroes2::ResolutionInfo & resolutionInfo )
+        {
+            _useCpuScaler = false;
+            _cpuScale = 1;
+            _scaledSize = {};
+
+            if ( !fheroes2::isCpuScalingType( scalingType() ) ) {
+                return;
+            }
+
+            if ( resolutionInfo.screenWidth <= resolutionInfo.gameWidth && resolutionInfo.screenHeight <= resolutionInfo.gameHeight ) {
+                // Nothing to upscale.
+                return;
+            }
+
+            if ( scalingType() == fheroes2::ScalingType::XBRZ ) {
+                // Integer factor which is not smaller than the window scale. If the window scale is not an integer
+                // the texture is supersampled and SDL shrinks it smoothly to the window size.
+                const int32_t scaleX = ( resolutionInfo.screenWidth + resolutionInfo.gameWidth - 1 ) / resolutionInfo.gameWidth;
+                const int32_t scaleY = ( resolutionInfo.screenHeight + resolutionInfo.gameHeight - 1 ) / resolutionInfo.gameHeight;
+                _cpuScale = std::clamp( std::max( scaleX, scaleY ), 2, 4 );
+                _scaledSize = { resolutionInfo.gameWidth * _cpuScale, resolutionInfo.gameHeight * _cpuScale };
+            }
+            else {
+                _scaledSize = { resolutionInfo.screenWidth, resolutionInfo.screenHeight };
+            }
+
+            _useCpuScaler = true;
+        }
+
+        // Picks a 32-bit texture format with 8 bits per colour channel supported by the renderer.
+        bool _createScaledTexture()
+        {
+            assert( _renderer != nullptr && _useCpuScaler && _scaledSize.width > 0 && _scaledSize.height > 0 );
+
+            std::vector<uint32_t> candidates;
+
+            SDL_RendererInfo info;
+            if ( SDL_GetRendererInfo( _renderer, &info ) == 0 ) {
+                for ( uint32_t i = 0; i < info.num_texture_formats; ++i ) {
+                    candidates.push_back( info.texture_formats[i] );
+                }
+            }
+            candidates.push_back( SDL_PIXELFORMAT_ARGB8888 );
+
+            uint32_t format = SDL_PIXELFORMAT_UNKNOWN;
+            for ( const uint32_t candidate : candidates ) {
+                if ( SDL_ISPIXELFORMAT_FOURCC( candidate ) || SDL_ISPIXELFORMAT_INDEXED( candidate ) || SDL_BITSPERPIXEL( candidate ) != 32 ) {
+                    continue;
+                }
+
+                SDL_PixelFormat * pixelFormat = SDL_AllocFormat( candidate );
+                if ( pixelFormat == nullptr ) {
+                    continue;
+                }
+
+                const bool isSuitable = ( pixelFormat->Rloss == 0 && pixelFormat->Gloss == 0 && pixelFormat->Bloss == 0 && pixelFormat->BytesPerPixel == 4 );
+                if ( isSuitable ) {
+                    _scalerLayout.redShift = pixelFormat->Rshift;
+                    _scalerLayout.greenShift = pixelFormat->Gshift;
+                    _scalerLayout.blueShift = pixelFormat->Bshift;
+                    _scalerAlphaMask = pixelFormat->Amask;
+                    format = candidate;
+                }
+
+                SDL_FreeFormat( pixelFormat );
+
+                if ( isSuitable ) {
+                    break;
+                }
+            }
+
+            if ( format == SDL_PIXELFORMAT_UNKNOWN ) {
+                ERROR_LOG( "Failed to find a 32-bit texture format for the CPU scaler." )
+                return false;
+            }
+
+            _texture = SDL_CreateTexture( _renderer, format, SDL_TEXTUREACCESS_STREAMING, _scaledSize.width, _scaledSize.height );
+            if ( _texture == nullptr ) {
+                ERROR_LOG( "Failed to create a texture of " << _scaledSize.width << " x " << _scaledSize.height << " size. The error: " << SDL_GetError() )
+                return false;
+            }
+
+            _scaledFrame.assign( static_cast<size_t>( _scaledSize.width ) * _scaledSize.height, 0 );
+
+            return true;
+        }
+
+        void _updateScalerPalette( const std::vector<uint8_t> & colorIds )
+        {
+            assert( colorIds.size() == fheroes2::paletteSize );
+
+            std::array<uint32_t, fheroes2::paletteSize> palette{};
+            for ( size_t i = 0; i < fheroes2::paletteSize; ++i ) {
+                const fheroes2::RGB & color = currentRGBPalette[colorIds[i]];
+                palette[i] = ( static_cast<uint32_t>( color.r ) << _scalerLayout.redShift ) | ( static_cast<uint32_t>( color.g ) << _scalerLayout.greenShift )
+                             | ( static_cast<uint32_t>( color.b ) << _scalerLayout.blueShift ) | _scalerAlphaMask;
+            }
+
+            _scaler.setPalette( palette.data(), _scalerLayout );
+        }
+
+        void _renderScaled( const fheroes2::Display & display, const fheroes2::Rect & roi )
+        {
+            assert( _useCpuScaler && _texture != nullptr && _scaler.isPaletteSet() );
+
+            const int32_t width = display.width();
+            const int32_t height = display.height();
+            const uint8_t * src = display.image();
+
+            fheroes2::Rect dstRect;
+
+            if ( scalingType() == fheroes2::ScalingType::XBRZ ) {
+                // Output pixels within two source pixels of the changed area depend on it.
+                fheroes2::Rect srcRoi( roi.x - 2, roi.y - 2, roi.width + 4, roi.height + 4 );
+                if ( !getActiveArea( srcRoi, width, height ) ) {
+                    return;
+                }
+
+                _scaler.scaleXBRZ( src, width, width, height, srcRoi, _scaledFrame.data(), _scaledSize.width, _cpuScale );
+                dstRect = { srcRoi.x * _cpuScale, srcRoi.y * _cpuScale, srcRoi.width * _cpuScale, srcRoi.height * _cpuScale };
+            }
+            else {
+                dstRect = _scaler.scaleSharp( src, width, width, height, roi, _scaledFrame.data(), _scaledSize.width, _scaledSize.width, _scaledSize.height );
+            }
+
+            if ( dstRect.width <= 0 || dstRect.height <= 0 ) {
+                return;
+            }
+
+            SDL_Rect area;
+            area.x = dstRect.x;
+            area.y = dstRect.y;
+            area.w = dstRect.width;
+            area.h = dstRect.height;
+
+            const uint32_t * pixels = _scaledFrame.data() + static_cast<ptrdiff_t>( dstRect.y ) * _scaledSize.width + dstRect.x;
+            const int returnCode = SDL_UpdateTexture( _texture, &area, pixels, _scaledSize.width * static_cast<int>( sizeof( uint32_t ) ) );
+            if ( returnCode < 0 ) {
+                ERROR_LOG( "Failed to update scaled texture. The error value: " << returnCode << ", description: " << SDL_GetError() )
+            }
+        }
+
         void _createPalette()
         {
-            if ( _surface == nullptr )
+            if ( _surface == nullptr && !_useCpuScaler )
                 return;
 
             updatePalette( StandardPaletteIndexes() );
 
-            if ( _surface->format->BitsPerPixel == 8 ) {
+            if ( _surface != nullptr && _surface->format->BitsPerPixel == 8 ) {
                 if ( !SDL_MUSTLOCK( _surface ) ) {
                     // copy the image from display buffer to SDL surface
                     const fheroes2::Display & display = fheroes2::Display::instance();

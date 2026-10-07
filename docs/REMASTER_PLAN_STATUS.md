@@ -7,11 +7,17 @@ One line per task of [REMASTER_PLAN.md](REMASTER_PLAN.md). States: `todo`, `in p
 * P1.1 - done - d4f0b17d3
 * P1.2 - done - d4f0b17d3
 * P1.3 - done
-* P1.4 - todo
+* P1.4 - done
 * P1.5 - todo
 * P1.6 - todo
 
 ## Notes
+
+* P1.4: the CPU scaler path keeps the SDL logical size equal to the game resolution (mouse coordinates are
+  unaffected) and only enlarges the streaming texture. xBRZ uses the smallest integer factor not below the
+  window scale (2 to 4) and lets SDL shrink the supersampled texture linearly when the window scale is not
+  an integer. Verified headlessly under Xvfb: nearest mode is pixel-identical to master (0 differing pixels),
+  xBRZ and Sharp render correctly at 960x540 scaled to 1920x1080, opening and closing dialogs leaves no seams.
 
 * P1.3 design change: the scalers take the 8-bit indexed frame plus the 256-entry palette instead of an RGBA
   copy (`fheroes2::PaletteScaler` in `src/engine/image_scaler.h`). Colour distances become a 256 x 256 table
