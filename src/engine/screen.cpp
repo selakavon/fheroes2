@@ -25,6 +25,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <cstdlib>
 #include <cstring>
 #include <iterator>
 #include <optional>
@@ -188,6 +189,34 @@ namespace
                 }
 
                 scaledResolutions.emplace( resolution.gameWidth / scale, resolution.gameHeight / scale, resolution.gameWidth, resolution.gameHeight );
+            }
+        }
+
+        {
+            // Render-scale resolutions for the biggest hardware resolution: the in-game resolution is (approximately) the screen
+            // resolution divided by 2, 3 or 4 even when the division is not exact. The CPU scalers (xBRZ, Sharp) handle the
+            // resulting non-integer window scale well, and these entries keep the UI readable on very high resolution screens.
+            const fheroes2::ResolutionInfo biggestResolution = *( std::prev( resolutions.end() ) );
+
+            for ( int32_t scale = 2; scale <= 4; ++scale ) {
+                // Keep the in-game size even so that the scaled size stays aligned.
+                const int32_t gameWidth = ( biggestResolution.gameWidth / scale ) & ~1;
+                const int32_t gameHeight = ( biggestResolution.gameHeight / scale ) & ~1;
+
+                if ( gameWidth < fheroes2::Display::DEFAULT_WIDTH || gameHeight < fheroes2::Display::DEFAULT_HEIGHT ) {
+                    break;
+                }
+
+                // Skip entries which are almost the same as an already generated one (e.g. the widescreen entry above).
+                const bool isDuplicate = std::any_of( scaledResolutions.begin(), scaledResolutions.end(), [&]( const fheroes2::ResolutionInfo & info ) {
+                    return info.screenWidth == biggestResolution.gameWidth && info.screenHeight == biggestResolution.gameHeight
+                           && std::abs( info.gameWidth - gameWidth ) <= 2 && std::abs( info.gameHeight - gameHeight ) <= 2;
+                } );
+                if ( isDuplicate ) {
+                    continue;
+                }
+
+                scaledResolutions.emplace( gameWidth, gameHeight, biggestResolution.gameWidth, biggestResolution.gameHeight );
             }
         }
 
