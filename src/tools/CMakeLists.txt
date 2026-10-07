@@ -1,6 +1,6 @@
 ###########################################################################
 #   fheroes2: https://github.com/ihhub/fheroes2                           #
-#   Copyright (C) 2022 - 2025                                             #
+#   Copyright (C) 2022 - 2026                                             #
 #                                                                         #
 #   This program is free software; you can redistribute it and/or modify  #
 #   it under the terms of the GNU General Public License as published by  #
@@ -32,6 +32,7 @@ add_executable(extractor extractor.cpp)
 add_executable(h2dmgr h2dmgr.cpp)
 add_executable(icn2img icn2img.cpp)
 add_executable(pal2img pal2img.cpp)
+add_executable(scaler_test scaler_test.cpp)
 add_executable(til2img til2img.cpp)
 add_executable(xmi2midi xmi2midi.cpp)
 
@@ -41,5 +42,6 @@ target_link_libraries(extractor engine)
 target_link_libraries(h2dmgr engine)
 target_link_libraries(icn2img engine)
 target_link_libraries(pal2img engine)
+target_link_libraries(scaler_test engine)
 target_link_libraries(til2img engine)
 target_link_libraries(xmi2midi engine)
