@@ -188,6 +188,7 @@
     <ClCompile Include="src\fheroes2\gui\ui_text.cpp" />
     <ClCompile Include="src\fheroes2\gui\ui_tool.cpp" />
     <ClCompile Include="src\fheroes2\gui\ui_window.cpp" />
+    <ClCompile Include="src\fheroes2\gui\weather.cpp" />
     <ClCompile Include="src\fheroes2\h2d\h2d.cpp" />
     <ClCompile Include="src\fheroes2\heroes\direction.cpp" />
     <ClCompile Include="src\fheroes2\heroes\heroes.cpp" />
@@ -413,6 +414,7 @@
     <ClInclude Include="src\fheroes2\gui\ui_text.h" />
     <ClInclude Include="src\fheroes2\gui\ui_tool.h" />
     <ClInclude Include="src\fheroes2\gui\ui_window.h" />
+    <ClInclude Include="src\fheroes2\gui\weather.h" />
     <ClInclude Include="src\fheroes2\h2d\h2d.h" />
     <ClInclude Include="src\fheroes2\heroes\direction.h" />
     <ClInclude Include="src\fheroes2\heroes\heroes.h" />

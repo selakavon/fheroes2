@@ -2916,6 +2916,25 @@ namespace
                 }
             }
             break;
+        case ICN::WEATHER_LEAVES: {
+            _icnVsSprite[id].resize( 6 );
+
+            for ( size_t shape = 0; shape < 3; ++shape ) {
+                for ( size_t frame = 0; frame < 2; ++frame ) {
+                    const std::string name = "leaf_" + std::to_string( shape ) + '_' + std::to_string( frame ) + ".image";
+                    fheroes2::h2d::readImage( name, _icnVsSprite[id][shape * 2 + frame] );
+                }
+            }
+
+            break;
+        }
+        case ICN::WEATHER_FOG_NOISE: {
+            _icnVsSprite[id].resize( 1 );
+
+            fheroes2::h2d::readImage( "fog_noise.image", _icnVsSprite[id][0] );
+
+            break;
+        }
         case ICN::EVIL_DIALOG_PLAIN_CORNERS: {
             _icnVsSprite[id].resize( 1 );
 

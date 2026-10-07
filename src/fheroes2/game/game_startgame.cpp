@@ -86,6 +86,7 @@
 #include "ui_language.h"
 #include "ui_text.h"
 #include "ui_tool.h"
+#include "weather.h"
 #include "week.h"
 #include "world.h"
 
@@ -1082,6 +1083,7 @@ fheroes2::GameMode Interface::AdventureMap::HumanTurn( const bool isLoadedFromSa
     int heroAnimationSpriteId = 0;
 
     const std::vector<Game::DelayType> delayTypes = { Game::DelayType::CURRENT_HERO_DELAY, Game::DelayType::MAPS_DELAY };
+    const std::vector<Game::DelayType> delayTypesWithWeather = { Game::DelayType::CURRENT_HERO_DELAY, Game::DelayType::MAPS_DELAY, Game::DelayType::WEATHER_DELAY };
 
     LocalEvent & le = LocalEvent::Get();
     Cursor & cursor = Cursor::Get();
@@ -1104,7 +1106,7 @@ fheroes2::GameMode Interface::AdventureMap::HumanTurn( const bool isLoadedFromSa
     };
 
     while ( res == fheroes2::GameMode::CANCEL ) {
-        if ( !le.HandleEvents( Game::isDelayNeeded( delayTypes ), true ) ) {
+        if ( !le.HandleEvents( Game::isDelayNeeded( fheroes2::Weather::instance().isActive() ? delayTypesWithWeather : delayTypes ), true ) ) {
             if ( Game::processExitEvent() == fheroes2::GameMode::QUIT_GAME ) {
                 res = fheroes2::GameMode::QUIT_GAME;
 
@@ -1569,6 +1571,13 @@ fheroes2::GameMode Interface::AdventureMap::HumanTurn( const bool isLoadedFromSa
         // Map objects animation
         if ( Game::validateAnimationDelay( Game::DelayType::MAPS_DELAY ) ) {
             Game::updateAdventureMapAnimationIndex();
+
+            _gameArea.SetRedraw();
+        }
+
+        // Weather animation
+        if ( fheroes2::Weather::instance().isActive() && Game::validateAnimationDelay( Game::DelayType::WEATHER_DELAY ) ) {
+            fheroes2::Weather::instance().update( _gameArea.GetROI() );
 
             _gameArea.SetRedraw();
         }

@@ -32,6 +32,7 @@ namespace Game
         CURSOR_BLINK_DELAY,
         MAIN_MENU_DELAY,
         MAPS_DELAY,
+        WEATHER_DELAY,
         CASTLE_TAVERN_DELAY,
         CASTLE_AROUND_DELAY,
         CASTLE_ITEM_UPDATE_DELAY,

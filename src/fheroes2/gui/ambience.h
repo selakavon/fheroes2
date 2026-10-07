@@ -25,6 +25,7 @@
 
 #include "image_palette.h"
 #include "timing.h"
+#include "weather.h"
 
 namespace fheroes2
 {
@@ -74,6 +75,9 @@ namespace fheroes2
 
         // Treats all the dialogs opened so far as part of the scene background (used by the battle screen which is itself a window).
         void rebaseDialogDepth();
+
+        // The weather of the current in-game week. It is chosen deterministically from the map seed, the week and the season.
+        WeatherType weatherType() const;
 
         // Applies the current tint to 'palette' (the default game palette on input). Returns false when no tint is active,
         // in which case the palette is left untouched.

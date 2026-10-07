@@ -61,6 +61,7 @@
 #include "til.h"
 #include "ui_constants.h"
 #include "ui_object_rendering.h"
+#include "weather.h"
 #include "world.h"
 
 namespace
@@ -799,6 +800,10 @@ void Interface::GameArea::Redraw( fheroes2::Image & dst, int flag, bool isPuzzle
                 }
             }
         }
+    }
+
+    if ( ( flag & LEVEL_WEATHER ) && !isPuzzleDraw ) {
+        fheroes2::Weather::instance().draw( dst, _windowROI );
     }
 
     updateObjectAnimationInfo();

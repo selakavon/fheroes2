@@ -98,6 +98,7 @@ void Game::initAnimateDelays()
     setDelay( DelayType::CURSOR_BLINK_DELAY, 440 );
     setDelay( DelayType::MAIN_MENU_DELAY, 250 );
     setDelay( DelayType::MAPS_DELAY, 250 );
+    setDelay( DelayType::WEATHER_DELAY, 50 );
     setDelay( DelayType::CASTLE_TAVERN_DELAY, 75 );
     setDelay( DelayType::CASTLE_AROUND_DELAY, 200 );
     setDelay( DelayType::CASTLE_ITEM_UPDATE_DELAY, 60 );

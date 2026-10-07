@@ -57,6 +57,7 @@ namespace Interface
         LEVEL_TOWNS = 0x08, // this level is used only for View All / View Towns spells.
 
         LEVEL_PASSABILITIES = 0x10, // this level is used only by the Editor.
+        LEVEL_WEATHER = 0x20, // weather particles and fog (remaster), only for the Adventure Map.
 
         LEVEL_ALL = LEVEL_OBJECTS | LEVEL_HEROES | LEVEL_FOG | LEVEL_ROUTES
     };

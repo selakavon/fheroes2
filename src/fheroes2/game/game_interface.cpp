@@ -134,7 +134,7 @@ void Interface::AdventureMap::redraw( const uint32_t force )
 
     if ( combinedRedraw & REDRAW_GAMEAREA ) {
         if ( !conf.IsGameType( Game::TYPE_AUTO_PLAYTEST ) || fheroes2::AutoPlaytest::instance().isAnimationEnabled() ) {
-            _gameArea.Redraw( fheroes2::Display::instance(), LEVEL_ALL );
+            _gameArea.Redraw( fheroes2::Display::instance(), LEVEL_ALL | LEVEL_WEATHER );
         }
 
         if ( hideInterface && conf.ShowControlPanel() ) {

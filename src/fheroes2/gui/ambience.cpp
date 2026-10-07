@@ -164,6 +164,55 @@ namespace fheroes2
         return tint;
     }
 
+    WeatherType Ambience::weatherType() const
+    {
+        // A small integer hash of the map seed and the week number, mapped to 0..99.
+        uint32_t hash = world.GetMapSeed() * 2654435761U + world.CountWeek() * 40503U + 0x7F4A7C15U;
+        hash ^= hash >> 15U;
+        hash *= 0x2C1B3C6DU;
+        hash ^= hash >> 12U;
+        const uint32_t roll = hash % 100U;
+
+        const uint32_t month = world.GetMonth();
+        const uint32_t season = ( ( month > 0 ? month - 1 : 0 ) % 12 ) / 3;
+
+        switch ( season ) {
+        case 0:
+            // Spring: rain 40%, fog 10%.
+            if ( roll < 40 ) {
+                return WeatherType::RAIN;
+            }
+            if ( roll < 50 ) {
+                return WeatherType::FOG;
+            }
+            return WeatherType::NONE;
+        case 1:
+            // Summer: rain 20%.
+            return ( roll < 20 ) ? WeatherType::RAIN : WeatherType::NONE;
+        case 2:
+            // Autumn: leaves 30%, rain 30%, fog 10%.
+            if ( roll < 30 ) {
+                return WeatherType::LEAVES;
+            }
+            if ( roll < 60 ) {
+                return WeatherType::RAIN;
+            }
+            if ( roll < 70 ) {
+                return WeatherType::FOG;
+            }
+            return WeatherType::NONE;
+        default:
+            // Winter: snow 50%, fog 10%.
+            if ( roll < 50 ) {
+                return WeatherType::SNOW;
+            }
+            if ( roll < 60 ) {
+                return WeatherType::FOG;
+            }
+            return WeatherType::NONE;
+        }
+    }
+
     bool Ambience::apply( std::vector<RGB> & palette )
     {
         if ( !_isActive() ) {

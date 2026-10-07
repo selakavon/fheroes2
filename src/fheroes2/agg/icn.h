@@ -1133,6 +1133,10 @@ namespace ICN
 
         EVIL_DIALOG_PLAIN_CORNERS,
 
+        // Weather effect sprites (remaster): 3 leaf shapes with 2 animation frames each, and a 64x64 fog noise mask.
+        WEATHER_LEAVES,
+        WEATHER_FOG_NOISE,
+
         // IMPORTANT! Put any new entry just above this one.
         LASTICN
     };

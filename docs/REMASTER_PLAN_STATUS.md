@@ -15,7 +15,7 @@ One line per task of [REMASTER_PLAN.md](REMASTER_PLAN.md). States: `todo`, `in p
 
 * P2.1 - done - 2f259867d
 * P2.2 - done
-* P2.3 - todo
+* P2.3 - done
 * P2.4 - todo
 * P2.5 - todo
 * P2.6 - todo
@@ -51,6 +51,27 @@ One line per task of [REMASTER_PLAN.md](REMASTER_PLAN.md). States: `todo`, `in p
   screenshots show dawn, morning, noon, afternoon, dusk, evening, night and dawn again (side panel mean colour goes
   125,90,61 at noon to 50,45,48 at night); with both tints off the main menu is pixel-identical to `master`; the end
   turn confirmation dialog renders untinted at night. Battle tint was not verified headlessly.
+
+* P2.3 design changes: the fog noise mask is a seamless 256x256 tile (generated with ImageMagick, source PNG under
+  `files/images/weather/`) instead of 64x64 because a 64 px period tiled visibly; mirrored 64 px variants looked like a
+  kaleidoscope. The fog is not blitted as a sprite: at first use the mask is converted into per-row runs of pixels
+  that share a whitening level, and the engine's transform tables 8 (light) and 7 (dense) are sampled through
+  `ApplyTransform()` on a 256-entry ramp so that the runs can be applied directly to the frame (table 6 flattens
+  everything to one gray and is not used). Near-black palette entries are left untouched so the unexplored part of
+  the map stays black. Particles are updated on a dedicated 50 ms `WEATHER_DELAY` tick rather than the 250 ms
+  `MAPS_DELAY`, which is too coarse for rain. The weather type is chosen in `Ambience::weatherType()` from a hash of
+  the map seed and the week number, with 10% fog added to spring, autumn and winter. Leaves are 5x4 pixel sprites
+  (3 shapes, 2 frames) and read as small drifting specks at native resolution.
+* P2.3 h2d packing: `h2dmgr combine` merges into an existing target file, so the new images were added on top of the
+  committed `resurrection.h2d`. Re-combining from extracted PNGs loses the transform (shadow) layers of 25 existing
+  sprites, so never rebuild the file that way. The new entries are also listed in `h2d.cpp`, which validates the file
+  list at start-up.
+* P2.3 verification (headless, 960x540 game area scaled to 1920x1080, each type forced through a temporary override):
+  rain streaks, snow dots, leaves and fog banks are visible on the map and animate between frames; the end turn
+  dialog renders clean on top of them. Release draw cost on the 768x508 game area: rain 0.10 ms, fog 0.44 ms at
+  27% mask coverage (about 0.85 ms extrapolated to a 1280x720 game area). The weather is drawn only from the
+  Adventure Map redraw with `LEVEL_WEATHER`, so other `GameArea::Redraw()` users (editor, puzzle) are unaffected;
+  with the option off `Weather::draw()` returns before touching the frame.
 
 * P1.5: the resolution dialog already labelled scaled entries as "960 x 540 (x2.0)", so only the resolution
   list generation was extended (2x, 3x, 4x of the biggest screen resolution, even sizes, near-duplicates of
